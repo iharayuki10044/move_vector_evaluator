@@ -24,9 +24,10 @@ find_package(catkin REQUIRED COMPONENTS
 	image_transport
 	pedsim_msgs
     gazebo_msgs
-    Eigen3 REQUIRED COMPONENTS system
     # message_generation
 )
+
+find_package(Eigen3 REQUIRED COMPONENTS system)
 include_directories(${Eigen_INCLUDE_DIRS})
 
 ## System dependencies are found with CMake's conventions
@@ -119,8 +120,8 @@ include_directories(${Eigen_INCLUDE_DIRS})
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
-#  LIBRARIES sotugixyou
+    INCLUDE_DIRS include
+#  LIBRARIES mv_evaluator
 #  CATKIN_DEPENDS other_catkin_pkg
 #  DEPENDS system_lib
 )
@@ -147,14 +148,14 @@ add_definitions(
 )
 
 ## Declare a C++ library
-add_library(${PROJECT_NAME}
+add_library(libmv_evaluator
     src/mv_evaluator.cpp
 )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(libmv_evaluator ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
