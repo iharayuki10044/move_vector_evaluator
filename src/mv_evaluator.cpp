@@ -28,8 +28,6 @@ void MVEvaluator::formatter(void)
 	/* std::cout << "formatter" << std::endl; */
     gazebo_model_states_callback_flag = false;
 	tracked_person_callback_flag = false;
-    vp_callback_flag = false;
-	IS_SAVE_IMAGE = false;
 
 	dt = 1.0 / Hz;
 	current_people_data.resize(PEOPLE_NUM);
