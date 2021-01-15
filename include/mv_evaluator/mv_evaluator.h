@@ -76,7 +76,7 @@ public:
     void gazebo_model_states_callback(const gazebo_msgs::ModelStates::ConstPtr&);
     void tracked_person_callback(const pedsim_msgs::TrackedPersons::ConstPtr&);
     void calculate_people_vector(PeopleData&, PeopleData&);
-    void transform_move_vector(PeopleData&, double);
+    void transform_people_vector(PeopleData&, double);
 
 private:
     bool gazebo_model_states_callback_flag = false;

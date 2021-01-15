@@ -18,12 +18,11 @@ void MVEvaluator::executor(void)
     ros::Rate r(Hz);
 	while(ros::ok()){
         std::cout << "==MVEvaluator=="<< std::endl;
-
         if(gazebo_model_states_callback_flag && tracked_person_callback_flag){
-        std::cout << "calculate move vector"<< std::endl;
+            std::cout << "calculate move vector"<< std::endl;
             calculate_people_vector(current_people_data, pre_people_data);
             is_person_in_local(current_people_data);
-            transform_move_vector(current_people_data, current_yaw);
+            transform_people_vector(current_people_data, current_yaw);
         
         }
 
@@ -108,7 +107,7 @@ double MVEvaluator::calculate_2Ddistance(const double x, const double y, const d
 	return sqrt(delta_x *delta_x + delta_y *delta_y);
 }
 
-void MVEvaluator::transform_move_vector(PeopleData &cur, double current_yaw)
+void MVEvaluator::transform_people_vector(PeopleData &cur, double current_yaw)
 {
     for(int i=0;i<PEOPLE_NUM;i++){
         if(cur[i].is_person_exist_in_local){
