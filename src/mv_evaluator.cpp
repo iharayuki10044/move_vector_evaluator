@@ -23,9 +23,8 @@ void MVEvaluator::executor(void)
             calculate_people_vector(current_people_data, pre_people_data);
             is_person_in_local(current_people_data);
             transform_people_vector(current_people_data, current_yaw);
-        
+            cp_peopledata_2_mv(current_people_data, mv_data);
         }
-
         std::cout<<std::endl;
 	    r.sleep();
 	    ros::spinOnce();
@@ -44,6 +43,7 @@ void MVEvaluator::formatter(void)
 	dt = 1.0 / Hz;
 	current_people_data.resize(PEOPLE_NUM);
 	pre_people_data.resize(PEOPLE_NUM);
+    mv_data.resize(0);
 }
 
 int MVEvaluator::find_num_from_name(const std::string &name,const std::vector<std::string> &states)
@@ -140,4 +140,25 @@ void MVEvaluator::is_person_in_local(PeopleData &cur)
             cur[i].is_person_exist_in_local = false;
         }
     }
+}
+
+void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
+{
+    mv_data.resize(0);
+    for(int i=0;i<PEOPLE_NUM;i++){
+        if(cur[i].is_person_exist_in_local){
+            MoveVector temp;
+            temp.vector_x = cur[i].move_vector_x;
+            temp.vector_y = cur[i].move_vector_y;
+            temp.local_point_x = cur[i].local_point_x;
+            temp.local_point_y = cur[i].local_point_y;
+            mv_data.push_back(temp);
+        }
+    }
+}
+
+double MVEvaluator::potential_field(double x, double y)
+{
+    double distance = calculate_2Ddistance(x, y, 0, 0);
+    return (1 -distance/DISTANCE_THRESHOLD);
 }

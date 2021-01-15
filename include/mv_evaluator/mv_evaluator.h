@@ -60,6 +60,7 @@ public:
             double vector_y;
             double local_point_x;
             double local_point_y;
+            double cost;
         private:
     };
     typedef std::vector<MoveVector> MoveVectorData;
@@ -77,6 +78,8 @@ public:
     void tracked_person_callback(const pedsim_msgs::TrackedPersons::ConstPtr&);
     void calculate_people_vector(PeopleData&, PeopleData&);
     void transform_people_vector(PeopleData&, double);
+    void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
+    double potential_field(const double, const double);
 
 private:
     bool gazebo_model_states_callback_flag = false;
@@ -89,11 +92,11 @@ private:
     double DISTANCE_THRESHOLD;
     int PEOPLE_NUM;
     int pc_seq;
-
     std::string PKG_PATH;
 
     PeopleData current_people_data;
     PeopleData pre_people_data;
+    MoveVectorData mv_data;
 
     ros::NodeHandle nh;
 	ros::Subscriber gazebo_model_states_subscriber;
