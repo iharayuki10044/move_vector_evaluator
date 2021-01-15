@@ -37,33 +37,46 @@
 class MVEvaluator
 {
 public:
-
-class People
+    class People
     {
-    public:
-        double point_x;
-        double point_y;
-        double length;
-        double move_vector_x;
-        double move_vector_y;
-        double local_point_x;
-        double local_point_y;
-        bool is_people_exist_in_local;
-    private:
+        public:
+            double point_x;
+            double point_y;
+            double move_vector_theta;
+            double move_vector_r;
+            double move_vector_x;
+            double move_vector_y;
+            double local_point_x;
+            double local_point_y;
+            bool is_person_exist_in_local;
+        private:
     };
     typedef std::vector<People> PeopleData;
+
+    class MoveVector
+    {
+        public:
+            double vector_x;
+            double vector_y;
+            double local_point_x;
+            double local_point_y;
+        private:
+    };
+    typedef std::vector<MoveVector> MoveVectorData;
 
     MVEvaluator(void);
 
     int find_num_from_name(const std::string& , const std::vector<std::string> &);
     double calculate_2Ddistance(const double, const double, const double, const double);
+    double atan2_positive(const double, const double);
+    void is_person_in_local(PeopleData&);
 
     void executor(void);
     void formatter(void);
     void gazebo_model_states_callback(const gazebo_msgs::ModelStates::ConstPtr&);
     void tracked_person_callback(const pedsim_msgs::TrackedPersons::ConstPtr&);
     void calculate_people_vector(PeopleData&, PeopleData&);
-    void initializer(void);
+    void transform_move_vector(PeopleData&, double);
 
 private:
     bool gazebo_model_states_callback_flag = false;
@@ -73,6 +86,7 @@ private:
     double pre_yaw;
     double Hz;
     double dt;
+    double DISTANCE_THRESHOLD;
     int PEOPLE_NUM;
     int pc_seq;
 
