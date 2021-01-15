@@ -68,8 +68,6 @@ class People
 private:
     bool gazebo_model_states_callback_flag = false;
     bool tracked_person_callback_flag = false;
-    bool vp_callback_flag = false;
-    bool IS_SAVE_IMAGE = false;
 
     double current_yaw;
     double pre_yaw;
