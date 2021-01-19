@@ -65,6 +65,13 @@ public:
     };
     typedef std::vector<MoveVector> MoveVectorData;
 
+    class penalty
+    {
+        public:
+        private:
+    };
+    typedef std::vector<penalty> PenaltyData;
+
     MVEvaluator(void);
 
     int find_num_from_name(const std::string& , const std::vector<std::string> &);
@@ -76,6 +83,7 @@ public:
     void formatter(void);
     void gazebo_model_states_callback(const gazebo_msgs::ModelStates::ConstPtr&);
     void tracked_person_callback(const pedsim_msgs::TrackedPersons::ConstPtr&);
+    void velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr&);
     void calculate_people_vector(PeopleData&, PeopleData&);
     void transform_people_vector(PeopleData&, double);
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
