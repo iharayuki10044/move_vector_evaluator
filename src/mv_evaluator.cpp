@@ -10,6 +10,7 @@ MVEvaluator::MVEvaluator(void)
 
     gazebo_model_states_subscriber = nh.subscribe("/gazebo/model_states", 10, &MVEvaluator::gazebo_model_states_callback, this);
 	tracked_person_subscriber = nh.subscribe("/pedsim_visualizer/tracked_persons", 10, &MVEvaluator::tracked_person_callback, this);
+    velodyne_points_subscriber = nh.subscribe("/velodyne_points", 10, &MVEvaluator::velodyne_callback, this);
 }
 
 void MVEvaluator::executor(void)
@@ -17,8 +18,8 @@ void MVEvaluator::executor(void)
     formatter();
     ros::Rate r(Hz);
 	while(ros::ok()){
-        std::cout << "==MVEvaluator=="<< std::endl;
-        if(gazebo_model_states_callback_flag && tracked_person_callback_flag){
+        // std::cout << "==MVEvaluator=="<< std::endl;
+        if(gazebo_model_states_callback_flag && tracked_person_callback_flag && 0){
             std::cout << "calculate move vector"<< std::endl;
             calculate_people_vector(current_people_data, pre_people_data);
             is_person_in_local(current_people_data);
@@ -79,6 +80,13 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
 	current_people_data[i].point_y = tracked_person.tracks[i].pose.pose.position.y;
 	}
 	tracked_person_callback_flag = true;
+}
+
+void MVEvaluator::velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr& msg)
+{
+    sensor_msgs::PointCloud2 input_pc = *msg;
+    std::cout << "number of point = " << input_pc.data.size() << std::endl;
+
 }
 
 void MVEvaluator::calculate_people_vector(PeopleData &cur, PeopleData &pre)
