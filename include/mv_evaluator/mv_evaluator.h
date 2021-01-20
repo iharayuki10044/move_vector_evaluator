@@ -65,30 +65,23 @@ public:
             double local_point_y;
             double local_yaw;
             double cost;
+            bool is_match;
         private:
     };
     typedef std::vector<MoveVector> MoveVectorData;
 
-    class penalty
+    class MatchingResults
     {
         public:
-        private:
-    };
-    typedef std::vector<penalty> PenaltyData;
-
-    class macthing
-    {
-        public:
-            int num_of_mv_losses;
-            int num_of_mv_ghosts;
-            int num_of_macthes;
+            int num_of_losses;
+            int num_of_ghosts;
+            int num_of_matches;
             double mv_loss_penalty;
             double mv_ghost_penalty;
-            double mv_macth_dis;
-            double mv_macth_ave;
+            double mv_match_dis;
+            double mv_match_ave;
         private:
     };
-    typedef std::vector<macthing> MathingResult;
 
     MVEvaluator(void);
 
@@ -108,7 +101,7 @@ public:
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
     double potential_field(const double, const double);
     double geometry_quat_to_rpy(geometry_msgs::Quaternion);
-    void evaluator(MoveVectorData&, MoveVectorData&);
+    void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&);
 
 private:
     bool gazebo_model_states_callback_flag = false;
@@ -119,7 +112,8 @@ private:
     double pre_yaw;
     double Hz;
     double dt;
-    double DISTANCE_THRESHOLD;
+    double DISTANCE_THRESHOLD_FOR_VELODYNE;
+    double DISTANCE_THRESHOLD_FOR_EVALUATE;
     int PEOPLE_NUM;
     int pc_seq;
     std::string PKG_PATH;
@@ -128,6 +122,7 @@ private:
     PeopleData pre_people_data;
     MoveVectorData mv_data;
     MoveVectorData estimate_data;
+    MatchingResults matching_results;
 
     ros::NodeHandle nh;
 	ros::Subscriber gazebo_model_states_subscriber;
@@ -139,7 +134,6 @@ private:
 
     Eigen::Vector3d current_position;
     Eigen::Vector3d pre_position;
-
 };
 
 #endif

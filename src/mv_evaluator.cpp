@@ -5,7 +5,8 @@ MVEvaluator::MVEvaluator(void)
 {
 	nh.param("Hz", Hz, {1.0});
     nh.param("PEOPLE_NUM", PEOPLE_NUM, {30});
-	nh.param("DISTANCE_THRESHOLD", DISTANCE_THRESHOLD, {3});
+	nh.param("DISTANCE_THRESHOLD_FOR_VELODYNE", DISTANCE_THRESHOLD_FOR_VELODYNE, {3});
+	nh.param("DISTANCE_THRESHOLD_FOR_EVALIATE", DISTANCE_THRESHOLD_FOR_EVALUATE, {0.2});
 	nh.param("PKG_PATH", PKG_PATH, {"/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"});
 
     gazebo_model_states_subscriber = nh.subscribe("/gazebo/model_states", 10, &MVEvaluator::gazebo_model_states_callback, this);
@@ -19,8 +20,8 @@ void MVEvaluator::executor(void)
     formatter();
     ros::Rate r(Hz);
 	while(ros::ok()){
-        // std::cout << "==MVEvaluator=="<< std::endl;
-        if(gazebo_model_states_callback_flag && tracked_person_callback_flag && 0){
+        std::cout << "==MVEvaluator=="<< std::endl;
+        if(gazebo_model_states_callback_flag && tracked_person_callback_flag){
             std::cout << "calculate move vector"<< std::endl;
             calculate_people_vector(current_people_data, pre_people_data);
             is_person_in_local(current_people_data);
@@ -28,10 +29,16 @@ void MVEvaluator::executor(void)
             cp_peopledata_2_mv(current_people_data, mv_data);
         
             if(estimate_data_callback_flag){
-                evaluator(mv_data, estimate_data);
+                evaluator(mv_data, estimate_data, matching_results);
+                std::cout << "evaluate" << std::endl;
+                std::cout<< "loss = " << matching_results.num_of_losses << std::endl;
+                std::cout<< "ghost = " << matching_results.num_of_ghosts << std::endl;
+                std::cout<< "match = " << matching_results.num_of_matches << std::endl;
             }
-        
         }
+        gazebo_model_states_callback_flag = false;
+	    tracked_person_callback_flag = false;
+        estimate_data_callback_flag = false;
         std::cout<<std::endl;
 	    r.sleep();
 	    ros::spinOnce();
@@ -45,13 +52,25 @@ void MVEvaluator::formatter(void)
 	pre_position = Eigen::Vector3d::Zero();
 	current_yaw = 0.0;
 	pre_yaw = 0.0;
+
     gazebo_model_states_callback_flag = false;
 	tracked_person_callback_flag = false;
     estimate_data_callback_flag = false;
+
 	dt = 1.0 / Hz;
-	current_people_data.resize(PEOPLE_NUM);
+
+    current_people_data.resize(PEOPLE_NUM);
 	pre_people_data.resize(PEOPLE_NUM);
     mv_data.resize(0);
+
+    matching_results.num_of_losses = 0;
+    matching_results.num_of_ghosts = 0;
+    matching_results.num_of_matches = 0;
+    matching_results.mv_loss_penalty = 0.0;
+    matching_results.mv_ghost_penalty = 0.0;
+    matching_results.mv_match_dis = 0.0;
+    matching_results.mv_match_ave = 0.0;
+
 }
 
 int MVEvaluator::find_num_from_name(const std::string &name,const std::vector<std::string> &states)
@@ -107,11 +126,12 @@ void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::Co
         output_data.local_yaw = geometry_quat_to_rpy(input_data.markers[i].pose.orientation);
         output_data.vector_x = input_data.markers[i].scale.x *cos(output_data.local_yaw);
         output_data.vector_y = input_data.markers[i].scale.x *sin(output_data.local_yaw);
+        output_data.is_match = false;
 
         estimate_data.push_back(output_data);
     }
 
-
+    estimate_data_callback_flag = true;
 }
 
 void MVEvaluator::calculate_people_vector(PeopleData &cur, PeopleData &pre)
@@ -166,7 +186,7 @@ void MVEvaluator::is_person_in_local(PeopleData &cur)
 {
     for(int i=0;i<PEOPLE_NUM;i++){
         double distance = calculate_2Ddistance(cur[i].point_x, cur[i].point_y, current_position.x(), current_position.y());
-        if(distance < DISTANCE_THRESHOLD){
+        if(distance < DISTANCE_THRESHOLD_FOR_VELODYNE){
             cur[i].is_person_exist_in_local = true;
         }
         else{
@@ -193,7 +213,7 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
 double MVEvaluator::potential_field(double x, double y)
 {
     double distance = calculate_2Ddistance(x, y, 0, 0);
-    return (1 -distance/DISTANCE_THRESHOLD);
+    return (1 -distance/DISTANCE_THRESHOLD_FOR_VELODYNE);
 }
 
 double MVEvaluator::geometry_quat_to_rpy(geometry_msgs::Quaternion geometry_quat)
@@ -205,7 +225,28 @@ double MVEvaluator::geometry_quat_to_rpy(geometry_msgs::Quaternion geometry_quat
     return yaw;
 }
 
-void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est)
+void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results)
 {
+    for(int i=0; i<truth.size();i++){
+        double dis;
+        for(int j=0;j<est.size();j++){
+            if(!est[j].is_match){
+                dis = calculate_2Ddistance(truth[i].local_point_x, truth[i].local_point_y, est[j].local_point_x, est[j].local_point_y);
+                if(DISTANCE_THRESHOLD_FOR_EVALUATE > dis){
+                    truth[i].is_match = true;
+                    est[j].is_match = true;
+                    results.num_of_matches++;
+                }
+            }
+        }
+        if(!truth[i].is_match){
+            results.num_of_losses++;
+        }
+    }
 
+    for(int i=0; i<est.size();i++){
+        if(!est[i].is_match){
+            results.num_of_ghosts++;
+        }
+    }
 }
