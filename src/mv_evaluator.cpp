@@ -22,7 +22,7 @@ void MVEvaluator::executor(void)
 	while(ros::ok()){
         std::cout << "==MVEvaluator=="<< std::endl;
         if(gazebo_model_states_callback_flag && tracked_person_callback_flag){
-            std::cout << "calculate move vector"<< std::endl;
+            // std::cout << "calculate move vector"<< std::endl;
             calculate_people_vector(current_people_data, pre_people_data);
             is_person_in_local(current_people_data);
             transform_people_vector(current_people_data, current_yaw);
@@ -121,13 +121,12 @@ void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::Co
     MoveVector output_data;
     estimate_data.resize(0);
     for(int i=0;i<input_data.markers.size();i++){
-        output_data.local_point_x = input_data.markers[i].pose.position.x;
-        output_data.local_point_y = input_data.markers[i].pose.position.y;
-        output_data.local_yaw = geometry_quat_to_rpy(input_data.markers[i].pose.orientation);
-        output_data.vector_x = input_data.markers[i].scale.x *cos(output_data.local_yaw);
-        output_data.vector_y = input_data.markers[i].scale.x *sin(output_data.local_yaw);
+        output_data.point_x = input_data.markers[i].pose.position.x;
+        output_data.point_y = input_data.markers[i].pose.position.y;
+        output_data.yaw = geometry_quat_to_rpy(input_data.markers[i].pose.orientation);
+        output_data.vector_x = input_data.markers[i].scale.x *cos(output_data.yaw);
+        output_data.vector_y = input_data.markers[i].scale.x *sin(output_data.yaw);
         output_data.is_match = false;
-
         estimate_data.push_back(output_data);
     }
 
@@ -162,6 +161,7 @@ double MVEvaluator::calculate_2Ddistance(const double x, const double y, const d
 
 void MVEvaluator::transform_people_vector(PeopleData &cur, double current_yaw)
 {
+    std::cout << "truth" << std::endl;
     for(int i=0;i<PEOPLE_NUM;i++){
         if(cur[i].is_person_exist_in_local){
             double pos_tr_theta = cur[i].move_vector_theta - current_yaw;
@@ -175,9 +175,9 @@ void MVEvaluator::transform_people_vector(PeopleData &cur, double current_yaw)
             cur[i].local_point_x = r *sin(mv_tr_theta);
             cur[i].local_point_y = r *cos(mv_tr_theta);
 
-            std::cout << "id : " << i << std::endl;
-            std::cout << "global x : " <<cur[i].point_x <<"global y : "<< cur[i].point_y <<std::endl;
-            std::cout << "local x : " <<cur[i].local_point_x <<"local y : " <<cur[i].local_point_y <<std::endl;
+            // std::cout << "id : " << i << std::endl;
+            std::cout << "global x : " <<cur[i].point_x <<" global y : "<< cur[i].point_y <<std::endl;
+            // std::cout << "local x : " <<cur[i].local_point_x <<" local y : " <<cur[i].local_point_y <<std::endl;
         }
     }
 }
@@ -203,8 +203,8 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
             MoveVector temp;
             temp.vector_x = cur[i].move_vector_x;
             temp.vector_y = cur[i].move_vector_y;
-            temp.local_point_x = cur[i].local_point_x;
-            temp.local_point_y = cur[i].local_point_y;
+            temp.point_x = cur[i].local_point_x;
+            temp.point_y = cur[i].local_point_y;
             mv_data.push_back(temp);
         }
     }
@@ -227,11 +227,12 @@ double MVEvaluator::geometry_quat_to_rpy(geometry_msgs::Quaternion geometry_quat
 
 void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results)
 {
+
     for(int i=0; i<truth.size();i++){
         double dis;
         for(int j=0;j<est.size();j++){
             if(!est[j].is_match){
-                dis = calculate_2Ddistance(truth[i].local_point_x, truth[i].local_point_y, est[j].local_point_x, est[j].local_point_y);
+                dis = calculate_2Ddistance(truth[i].point_x, truth[i].point_y, est[j].point_x, est[j].point_y);
                 if(DISTANCE_THRESHOLD_FOR_EVALUATE > dis){
                     truth[i].is_match = true;
                     est[j].is_match = true;
@@ -244,9 +245,11 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
         }
     }
 
+    std::cout<<"estimate"<<std::endl;
     for(int i=0; i<est.size();i++){
         if(!est[i].is_match){
             results.num_of_ghosts++;
         }
+        std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
     }
 }

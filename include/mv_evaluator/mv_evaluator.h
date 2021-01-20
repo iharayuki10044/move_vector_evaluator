@@ -61,9 +61,9 @@ public:
         public:
             double vector_x;
             double vector_y;
-            double local_point_x;
-            double local_point_y;
-            double local_yaw;
+            double point_x;
+            double point_y;
+            double yaw;
             double cost;
             bool is_match;
         private:
