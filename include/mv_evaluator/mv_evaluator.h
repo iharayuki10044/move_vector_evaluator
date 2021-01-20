@@ -9,6 +9,7 @@
 #include <geometry_msgs/Pose2D.h>
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
+#include <tf/transform_broadcaster.h>
 #include <tf/transform_datatypes.h>
 
 #include "Eigen/Core"
@@ -31,6 +32,8 @@
 
 #include <pedsim_msgs/TrackedPerson.h>
 #include <pedsim_msgs/TrackedPersons.h>
+
+#include <visualization_msgs/MarkerArray.h>
 
 #include <gazebo_msgs/ModelStates.h>
 
@@ -60,6 +63,7 @@ public:
             double vector_y;
             double local_point_x;
             double local_point_y;
+            double local_yaw;
             double cost;
         private:
     };
@@ -71,6 +75,20 @@ public:
         private:
     };
     typedef std::vector<penalty> PenaltyData;
+
+    class macthing
+    {
+        public:
+            int num_of_mv_losses;
+            int num_of_mv_ghosts;
+            int num_of_macthes;
+            double mv_loss_penalty;
+            double mv_ghost_penalty;
+            double mv_macth_dis;
+            double mv_macth_ave;
+        private:
+    };
+    typedef std::vector<macthing> MathingResult;
 
     MVEvaluator(void);
 
@@ -84,14 +102,18 @@ public:
     void gazebo_model_states_callback(const gazebo_msgs::ModelStates::ConstPtr&);
     void tracked_person_callback(const pedsim_msgs::TrackedPersons::ConstPtr&);
     void velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr&);
+    void kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr&);
     void calculate_people_vector(PeopleData&, PeopleData&);
     void transform_people_vector(PeopleData&, double);
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
     double potential_field(const double, const double);
+    double geometry_quat_to_rpy(geometry_msgs::Quaternion);
+    void evaluator(MoveVectorData&, MoveVectorData&);
 
 private:
     bool gazebo_model_states_callback_flag = false;
     bool tracked_person_callback_flag = false;
+    bool estimate_data_callback_flag = false;
 
     double current_yaw;
     double pre_yaw;
@@ -105,11 +127,13 @@ private:
     PeopleData current_people_data;
     PeopleData pre_people_data;
     MoveVectorData mv_data;
+    MoveVectorData estimate_data;
 
     ros::NodeHandle nh;
 	ros::Subscriber gazebo_model_states_subscriber;
     ros::Subscriber tracked_person_subscriber;
     ros::Subscriber velodyne_points_subscriber;
+    ros::Subscriber kf_tracking_subscriber;
 	ros::Publisher flow_image_publisher;
     ros::Publisher current_yaw_publisher;
 

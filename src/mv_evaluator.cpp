@@ -10,6 +10,7 @@ MVEvaluator::MVEvaluator(void)
 
     gazebo_model_states_subscriber = nh.subscribe("/gazebo/model_states", 10, &MVEvaluator::gazebo_model_states_callback, this);
 	tracked_person_subscriber = nh.subscribe("/pedsim_visualizer/tracked_persons", 10, &MVEvaluator::tracked_person_callback, this);
+    kf_tracking_subscriber = nh.subscribe("/velocity_arrows", 10, &MVEvaluator::kf_tracking_callback, this);
     velodyne_points_subscriber = nh.subscribe("/velodyne_points", 10, &MVEvaluator::velodyne_callback, this);
 }
 
@@ -25,6 +26,11 @@ void MVEvaluator::executor(void)
             is_person_in_local(current_people_data);
             transform_people_vector(current_people_data, current_yaw);
             cp_peopledata_2_mv(current_people_data, mv_data);
+        
+            if(estimate_data_callback_flag){
+                evaluator(mv_data, estimate_data);
+            }
+        
         }
         std::cout<<std::endl;
 	    r.sleep();
@@ -41,6 +47,7 @@ void MVEvaluator::formatter(void)
 	pre_yaw = 0.0;
     gazebo_model_states_callback_flag = false;
 	tracked_person_callback_flag = false;
+    estimate_data_callback_flag = false;
 	dt = 1.0 / Hz;
 	current_people_data.resize(PEOPLE_NUM);
 	pre_people_data.resize(PEOPLE_NUM);
@@ -85,7 +92,25 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
 void MVEvaluator::velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr& msg)
 {
     sensor_msgs::PointCloud2 input_pc = *msg;
-    std::cout << "number of point = " << input_pc.data.size() << std::endl;
+    // std::cout << "number of point = " << input_pc.data.size() << std::endl;
+
+}
+
+void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr& msg)
+{
+    visualization_msgs::MarkerArray input_data = *msg;
+    MoveVector output_data;
+    estimate_data.resize(0);
+    for(int i=0;i<input_data.markers.size();i++){
+        output_data.local_point_x = input_data.markers[i].pose.position.x;
+        output_data.local_point_y = input_data.markers[i].pose.position.y;
+        output_data.local_yaw = geometry_quat_to_rpy(input_data.markers[i].pose.orientation);
+        output_data.vector_x = input_data.markers[i].scale.x *cos(output_data.local_yaw);
+        output_data.vector_y = input_data.markers[i].scale.x *sin(output_data.local_yaw);
+
+        estimate_data.push_back(output_data);
+    }
+
 
 }
 
@@ -169,4 +194,18 @@ double MVEvaluator::potential_field(double x, double y)
 {
     double distance = calculate_2Ddistance(x, y, 0, 0);
     return (1 -distance/DISTANCE_THRESHOLD);
+}
+
+double MVEvaluator::geometry_quat_to_rpy(geometry_msgs::Quaternion geometry_quat)
+{
+    double roll, pitch, yaw;
+    tf::Quaternion quat;
+    quaternionMsgToTF(geometry_quat, quat);
+    tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);  //rpy are Pass by Reference
+    return yaw;
+}
+
+void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est)
+{
+
 }
