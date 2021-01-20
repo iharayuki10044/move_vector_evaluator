@@ -269,6 +269,9 @@ void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
     visualization_msgs::Marker arrow;
     arrows.markers.resize(0);
     for(int i=0;i<ground_truth.size();i++){
+        arrow.header.frame_id = "/map";
+        arrow.ns = "/ground_truth/velocity_arrows";
+        arrow.id = i;
         arrow.pose.position.x = ground_truth[i].point_x;
         arrow.pose.position.y = ground_truth[i].point_y;
         arrow.scale.x = sqrt(ground_truth[i].vector_x *ground_truth[i].vector_x + ground_truth[i].vector_y *ground_truth[i].vector_y);
@@ -277,6 +280,8 @@ void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
         arrow.pose.orientation = rpy_to_geometry_quat(ground_truth[i].yaw);
         arrow.color.r = 0;
         arrow.color.g = 1.0;
+        arrow.color.a =  0.600000023842;
+        arrow.lifetime = ros::Duration(1.0);
         arrows.markers.push_back(arrow);
     }
 
