@@ -209,6 +209,12 @@ geometry_msgs::Quaternion MVEvaluator::rpy_to_geometry_quat(double yaw){
 
 void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results)
 {
+    for(int i=0; i<est.size();i++){
+        est[i].is_match = false;
+    }
+    for(int i=0; i<truth.size();i++){
+        truth[i].is_match = false;
+    }
 
     for(int i=0; i<truth.size();i++){
         double dis;
@@ -248,7 +254,6 @@ void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
         arrow.pose.position.x = ground_truth[i].point_x;
         arrow.pose.position.y = ground_truth[i].point_y;
         arrow.scale.x = sqrt(ground_truth[i].vector_x *ground_truth[i].vector_x + ground_truth[i].vector_y *ground_truth[i].vector_y);
-        // arrow.scale.x = 1.5;
         arrow.scale.y = 0.1;
         arrow.scale.z = 0.1;
         arrow.pose.orientation = ground_truth[i].quaternion;
