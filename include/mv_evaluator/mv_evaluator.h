@@ -45,12 +45,12 @@ public:
         public:
             double point_x;
             double point_y;
-            double move_vector_theta;
-            double move_vector_r;
             double move_vector_x;
             double move_vector_y;
             double local_point_x;
             double local_point_y;
+            geometry_msgs::Quaternion quaternion;
+            geometry_msgs::Vector3 angular;
             bool is_person_exist_in_local;
         private:
     };
@@ -65,6 +65,8 @@ public:
             double point_y;
             double yaw;
             double cost;
+            geometry_msgs::Quaternion quaternion;
+            geometry_msgs::Vector3 angular;
             bool is_match;
         private:
     };
@@ -96,8 +98,6 @@ public:
     void tracked_person_callback(const pedsim_msgs::TrackedPersons::ConstPtr&);
     void velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr&);
     void kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr&);
-    void calculate_people_vector(PeopleData&, PeopleData&);
-    void transform_people_vector(PeopleData&, double);
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
     double potential_field(const double, const double);
     double geometry_quat_to_rpy(geometry_msgs::Quaternion);

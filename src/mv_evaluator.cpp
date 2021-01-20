@@ -24,9 +24,7 @@ void MVEvaluator::executor(void)
         std::cout << "==MVEvaluator=="<< std::endl;
         if(gazebo_model_states_callback_flag && tracked_person_callback_flag){
             // std::cout << "calculate move vector"<< std::endl;
-            calculate_people_vector(current_people_data, pre_people_data);
             is_person_in_local(current_people_data);
-            transform_people_vector(current_people_data, current_yaw);
             cp_peopledata_2_mv(current_people_data, mv_data);
             true_markarray_transformer(mv_data);
         
@@ -106,7 +104,11 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
 	pre_people_data[i] = current_people_data[i];
 	current_people_data[i].point_x = tracked_person.tracks[i].pose.pose.position.x;
 	current_people_data[i].point_y = tracked_person.tracks[i].pose.pose.position.y;
-	}
+    current_people_data[i].move_vector_x = tracked_person.tracks[i].twist.twist.linear.x;
+    current_people_data[i].move_vector_y = tracked_person.tracks[i].twist.twist.linear.y;
+    current_people_data[i].quaternion = tracked_person.tracks[i].pose.pose.orientation;
+    current_people_data[i].angular = tracked_person.tracks[i].twist.twist.angular;
+    }
 	tracked_person_callback_flag = true;
 }
 
@@ -135,15 +137,6 @@ void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::Co
     estimate_data_callback_flag = true;
 }
 
-void MVEvaluator::calculate_people_vector(PeopleData &cur, PeopleData &pre)
-{
-    for(int i=0;i<PEOPLE_NUM;i++){
-        cur[i].move_vector_x = cur[i].point_x - pre[i].point_x;
-        cur[i].move_vector_y = cur[i].point_y - pre[i].point_y;
-        cur[i].move_vector_theta = atan2_positive(cur[i].move_vector_y, cur[i].move_vector_x);
-        cur[i].move_vector_r =sqrt(cur[i].move_vector_x *cur[i].move_vector_x +cur[i].move_vector_y *cur[i].move_vector_y);
-    }
-}
 
 double MVEvaluator::atan2_positive(double y, double x)
 {
@@ -161,28 +154,6 @@ double MVEvaluator::calculate_2Ddistance(const double x, const double y, const d
 	return sqrt(delta_x *delta_x + delta_y *delta_y);
 }
 
-void MVEvaluator::transform_people_vector(PeopleData &cur, double current_yaw)
-{
-    std::cout << "truth" << std::endl;
-    for(int i=0;i<PEOPLE_NUM;i++){
-        if(cur[i].is_person_exist_in_local){
-            double pos_tr_theta = cur[i].move_vector_theta - current_yaw;
-            cur[i].move_vector_x = cur[i].move_vector_r *cos(pos_tr_theta);
-            cur[i].move_vector_y = cur[i].move_vector_r *sin(pos_tr_theta);
-
-            cur[i].local_point_x = cur[i].point_x - current_position.x();
-            cur[i].local_point_y = cur[i].point_y - current_position.y();
-            double mv_tr_theta = atan2_positive(cur[i].local_point_y, cur[i].local_point_x);
-            double r = calculate_2Ddistance(cur[i].local_point_x, cur[i].local_point_y, current_position.x(), current_position.y());
-            cur[i].local_point_x = r *sin(mv_tr_theta);
-            cur[i].local_point_y = r *cos(mv_tr_theta);
-
-            // std::cout << "id : " << i << std::endl;
-            std::cout << "global x : " <<cur[i].point_x <<" global y : "<< cur[i].point_y <<std::endl;
-            // std::cout << "local x : " <<cur[i].local_point_x <<" local y : " <<cur[i].local_point_y <<std::endl;
-        }
-    }
-}
 
 void MVEvaluator::is_person_in_local(PeopleData &cur)
 {
@@ -205,8 +176,10 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
             MoveVector temp;
             temp.vector_x = cur[i].move_vector_x;
             temp.vector_y = cur[i].move_vector_y;
-            temp.point_x = cur[i].local_point_x;
-            temp.point_y = cur[i].local_point_y;
+            temp.point_x = cur[i].point_x;
+            temp.point_y = cur[i].point_y;
+            temp.quaternion = cur[i].quaternion;
+            temp.angular = cur[i].angular;
             mv_data.push_back(temp);
         }
     }
@@ -275,9 +248,10 @@ void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
         arrow.pose.position.x = ground_truth[i].point_x;
         arrow.pose.position.y = ground_truth[i].point_y;
         arrow.scale.x = sqrt(ground_truth[i].vector_x *ground_truth[i].vector_x + ground_truth[i].vector_y *ground_truth[i].vector_y);
+        // arrow.scale.x = 1.5;
         arrow.scale.y = 0.1;
         arrow.scale.z = 0.1;
-        arrow.pose.orientation = rpy_to_geometry_quat(ground_truth[i].yaw);
+        arrow.pose.orientation = ground_truth[i].quaternion;
         arrow.color.r = 0;
         arrow.color.g = 1.0;
         arrow.color.a =  0.600000023842;
