@@ -185,9 +185,9 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
     }
 }
 
-double MVEvaluator::potential_field(double x, double y)
+double MVEvaluator::cost_calculator(double x, double y)
 {
-    double distance = calculate_2Ddistance(x, y, 0, 0);
+    double distance = calculate_2Ddistance(x, y, current_position.x(), current_position.y());
     return (1 -distance/DISTANCE_THRESHOLD_FOR_VELODYNE);
 }
 

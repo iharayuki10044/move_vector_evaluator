@@ -99,7 +99,7 @@ public:
     void velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr&);
     void kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr&);
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
-    double potential_field(const double, const double);
+    double cost_calculator(const double, const double);
     double geometry_quat_to_rpy(geometry_msgs::Quaternion);
     geometry_msgs::Quaternion rpy_to_geometry_quat(const double);
     void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&);
