@@ -7,6 +7,8 @@ MVEvaluator::MVEvaluator(void)
     nh.param("PEOPLE_NUM", PEOPLE_NUM, {30});
 	nh.param("DISTANCE_THRESHOLD_FOR_VELODYNE", DISTANCE_THRESHOLD_FOR_VELODYNE, {3});
 	nh.param("DISTANCE_THRESHOLD_FOR_EVALIATE", DISTANCE_THRESHOLD_FOR_EVALUATE, {0.2});
+    nh.param("LOSS_PENALTY_COEFFICIENT", LOSS_PENALTY_COEFFICIENT, {1.0});
+    nh.param("GHOST_PENALTY_COEFFICIENT", GHOST_PENALTY_COEFFICIENT, {1.0});
 	nh.param("PKG_PATH", PKG_PATH, {"/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"});
 
     gazebo_model_states_subscriber = nh.subscribe("/gazebo/model_states", 10, &MVEvaluator::gazebo_model_states_callback, this);
@@ -32,7 +34,9 @@ void MVEvaluator::executor(void)
                 evaluator(mv_data, estimate_data, matching_results);
                 std::cout << "evaluate" << std::endl;
                 std::cout<< "loss = " << matching_results.num_of_losses << std::endl;
+                std::cout<< "loss penalty = " << matching_results.mv_loss_penalty << std::endl;
                 std::cout<< "ghost = " << matching_results.num_of_ghosts << std::endl;
+                std::cout<< "ghost penalty = " << matching_results.mv_ghost_penalty << std::endl;
                 std::cout<< "match = " << matching_results.num_of_matches << std::endl;
             }
         }
@@ -230,6 +234,7 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
         }
         if(!truth[i].is_match){
             results.num_of_losses++;
+            results.mv_loss_penalty += LOSS_PENALTY_COEFFICIENT *cost_calculator(truth[i].point_x, truth[i].point_y);
         }
     }
 
@@ -237,6 +242,7 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
     for(int i=0; i<est.size();i++){
         if(!est[i].is_match){
             results.num_of_ghosts++;
+            results.mv_ghost_penalty += GHOST_PENALTY_COEFFICIENT *cost_calculator(est[i].point_x, est[i].point_y);
         }
         std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
     }

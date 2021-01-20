@@ -110,6 +110,9 @@ private:
     bool tracked_person_callback_flag = false;
     bool estimate_data_callback_flag = false;
 
+    double LOSS_PENALTY_COEFFICIENT;
+    double GHOST_PENALTY_COEFFICIENT;
+
     double current_yaw;
     double pre_yaw;
     double Hz;
