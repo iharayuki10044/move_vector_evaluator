@@ -101,7 +101,9 @@ public:
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
     double potential_field(const double, const double);
     double geometry_quat_to_rpy(geometry_msgs::Quaternion);
+    geometry_msgs::Quaternion rpy_to_geometry_quat(const double);
     void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&);
+    void true_markarray_transformer(MoveVectorData&);
 
 private:
     bool gazebo_model_states_callback_flag = false;
@@ -129,6 +131,7 @@ private:
     ros::Subscriber tracked_person_subscriber;
     ros::Subscriber velodyne_points_subscriber;
     ros::Subscriber kf_tracking_subscriber;
+    ros::Publisher truth_markarray_publisher;
 
     geometry_msgs::Pose2D current_pose2D;
 

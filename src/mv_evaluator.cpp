@@ -13,6 +13,7 @@ MVEvaluator::MVEvaluator(void)
 	tracked_person_subscriber = nh.subscribe("/pedsim_visualizer/tracked_persons", 10, &MVEvaluator::tracked_person_callback, this);
     kf_tracking_subscriber = nh.subscribe("/velocity_arrows", 10, &MVEvaluator::kf_tracking_callback, this);
     velodyne_points_subscriber = nh.subscribe("/velodyne_points", 10, &MVEvaluator::velodyne_callback, this);
+    truth_markarray_publisher = nh.advertise<visualization_msgs::MarkerArray>("/truth_velocity_arrows", 1);
 }
 
 void MVEvaluator::executor(void)
@@ -27,6 +28,7 @@ void MVEvaluator::executor(void)
             is_person_in_local(current_people_data);
             transform_people_vector(current_people_data, current_yaw);
             cp_peopledata_2_mv(current_people_data, mv_data);
+            true_markarray_transformer(mv_data);
         
             if(estimate_data_callback_flag){
                 evaluator(mv_data, estimate_data, matching_results);
@@ -225,6 +227,13 @@ double MVEvaluator::geometry_quat_to_rpy(geometry_msgs::Quaternion geometry_quat
     return yaw;
 }
 
+geometry_msgs::Quaternion MVEvaluator::rpy_to_geometry_quat(double yaw){
+    tf::Quaternion quat=tf::createQuaternionFromRPY(0,0,yaw);
+    geometry_msgs::Quaternion geometry_quat;
+    quaternionTFToMsg(quat, geometry_quat);
+    return geometry_quat;
+}
+
 void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results)
 {
 
@@ -252,4 +261,24 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
         }
         std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
     }
+}
+
+void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
+{
+    visualization_msgs::MarkerArray arrows;
+    visualization_msgs::Marker arrow;
+    arrows.markers.resize(0);
+    for(int i=0;i<ground_truth.size();i++){
+        arrow.pose.position.x = ground_truth[i].point_x;
+        arrow.pose.position.y = ground_truth[i].point_y;
+        arrow.scale.x = sqrt(ground_truth[i].vector_x *ground_truth[i].vector_x + ground_truth[i].vector_y *ground_truth[i].vector_y);
+        arrow.scale.y = 0.1;
+        arrow.scale.z = 0.1;
+        arrow.pose.orientation = rpy_to_geometry_quat(ground_truth[i].yaw);
+        arrow.color.r = 0;
+        arrow.color.g = 1.0;
+        arrows.markers.push_back(arrow);
+    }
+
+    truth_markarray_publisher.publish(arrows);
 }
