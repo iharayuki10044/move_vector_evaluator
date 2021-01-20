@@ -134,8 +134,6 @@ private:
     ros::Subscriber tracked_person_subscriber;
     ros::Subscriber velodyne_points_subscriber;
     ros::Subscriber kf_tracking_subscriber;
-	ros::Publisher flow_image_publisher;
-    ros::Publisher current_yaw_publisher;
 
     geometry_msgs::Pose2D current_pose2D;
 
