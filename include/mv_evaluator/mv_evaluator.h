@@ -78,7 +78,11 @@ public:
             int num_of_losses;
             int num_of_ghosts;
             int num_of_matches;
-            int num_of_total_vectors; 
+            int num_of_total_losses;
+            int num_of_total_ghosts;
+            int num_of_total_matches;
+            int num_of_total_truth;
+            int num_of_total_estimate;
             double mv_loss_penalty;
             double mv_ghost_penalty;
             double mv_match_dis;

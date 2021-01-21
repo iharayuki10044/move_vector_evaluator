@@ -2,8 +2,8 @@
 <launch>
 	<arg name="people_num" default="20"/>
     <arg name="hz" default="10.0"/>
-    <arg name="distance_threshold_for_vel" default="100"/>
-    <arg name="distance_threshold_for_eva" default="1.0"/>
+    <arg name="distance_threshold_for_veldyne" default="100"/>
+    <arg name="distance_threshold_for_eva" default="3.0"/>
     <arg name="loss_penalty_coefficient" default="1.0"/>
     <arg name="ghost_penalty_coefficient" default="1.0"/>
 
@@ -12,7 +12,7 @@
 	<node pkg="mv_evaluator" type="mv_evaluator" name="mv_evaluator" output="screen">
 		<param name="PEOPLE_NUM" value="$(arg people_num)" type="int"/>
 		<param name="Hz" value="$(arg hz)" type="double"/>
-        <param name="DISTANCE_THRESHOLD_FOR_VELODYNE" value="$(arg distance_threshold_for_vel)" type="double"/>
+        <param name="DISTANCE_THRESHOLD_FOR_VELODYNE" value="$(arg distance_threshold_for_veldyne)" type="double"/>
         <param name="DISTANCE_THRESHOLD_FOR_EVALUATE" value="$(arg distance_threshold_for_eva)" type="double"/>
         <param name="GHOST_PENALTY_COEFFICIENT" value="$(arg ghost_penalty_coefficient)" type="double"/>
         <param name="LOSS_PENALTY_COEFFICIENT" value="$(arg loss_penalty_coefficient)" type="double"/>
