@@ -7,11 +7,13 @@ MVEvaluator::MVEvaluator(void)
     nh.param("PEOPLE_NUM", PEOPLE_NUM, {30});
 	nh.param("DISTANCE_THRESHOLD_FOR_VELODYNE", DISTANCE_THRESHOLD_FOR_VELODYNE, {3});
 	nh.param("DISTANCE_THRESHOLD_FOR_EVALIATE", DISTANCE_THRESHOLD_FOR_EVALUATE, {0.2});
+    nh.param("LOSS_PENALTY_COEFFICIENT", LOSS_PENALTY_COEFFICIENT, {1.0});
+    nh.param("GHOST_PENALTY_COEFFICIENT", GHOST_PENALTY_COEFFICIENT, {1.0});
 	nh.param("PKG_PATH", PKG_PATH, {"/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"});
 
     gazebo_model_states_subscriber = nh.subscribe("/gazebo/model_states", 10, &MVEvaluator::gazebo_model_states_callback, this);
 	tracked_person_subscriber = nh.subscribe("/pedsim_visualizer/tracked_persons", 10, &MVEvaluator::tracked_person_callback, this);
-    kf_tracking_subscriber = nh.subscribe("/velocity_arrows", 10, &MVEvaluator::kf_tracking_callback, this);
+    kf_tracking_subscriber = nh.subscribe("/obstacles_trajectory_predictor_demo/velocity_arrows", 10, &MVEvaluator::kf_tracking_callback, this);
     velodyne_points_subscriber = nh.subscribe("/velodyne_points", 10, &MVEvaluator::velodyne_callback, this);
     truth_markarray_publisher = nh.advertise<visualization_msgs::MarkerArray>("/truth_velocity_arrows", 1);
 }
@@ -32,8 +34,11 @@ void MVEvaluator::executor(void)
                 evaluator(mv_data, estimate_data, matching_results);
                 std::cout << "evaluate" << std::endl;
                 std::cout<< "loss = " << matching_results.num_of_losses << std::endl;
+                std::cout<< "loss penalty = " << matching_results.mv_loss_penalty << std::endl;
                 std::cout<< "ghost = " << matching_results.num_of_ghosts << std::endl;
+                std::cout<< "ghost penalty = " << matching_results.mv_ghost_penalty << std::endl;
                 std::cout<< "match = " << matching_results.num_of_matches << std::endl;
+                std::cout<< "total vec = " << matching_results.num_of_total_vectors << std::endl;
             }
         }
         gazebo_model_states_callback_flag = false;
@@ -66,6 +71,7 @@ void MVEvaluator::formatter(void)
     matching_results.num_of_losses = 0;
     matching_results.num_of_ghosts = 0;
     matching_results.num_of_matches = 0;
+    matching_results.num_of_total_vectors = 0;
     matching_results.mv_loss_penalty = 0.0;
     matching_results.mv_ghost_penalty = 0.0;
     matching_results.mv_match_dis = 0.0;
@@ -99,7 +105,8 @@ void MVEvaluator::gazebo_model_states_callback(const gazebo_msgs::ModelStates::C
 
 void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::ConstPtr& msg)
 {
-	pedsim_msgs::TrackedPersons tracked_person = *msg;	
+	pedsim_msgs::TrackedPersons tracked_person = *msg;
+    PEOPLE_NUM = tracked_person.tracks.size();
 	for(int i=0;i<PEOPLE_NUM;i++){
 	pre_people_data[i] = current_people_data[i];
 	current_people_data[i].point_x = tracked_person.tracks[i].pose.pose.position.x;
@@ -109,6 +116,7 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
     current_people_data[i].quaternion = tracked_person.tracks[i].pose.pose.orientation;
     current_people_data[i].angular = tracked_person.tracks[i].twist.twist.angular;
     }
+    // std::cout<<"qu = "<< tracked_person <<std::endl;
 	tracked_person_callback_flag = true;
 }
 
@@ -127,7 +135,6 @@ void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::Co
     for(int i=0;i<input_data.markers.size();i++){
         output_data.point_x = input_data.markers[i].pose.position.x;
         output_data.point_y = input_data.markers[i].pose.position.y;
-        output_data.yaw = geometry_quat_to_rpy(input_data.markers[i].pose.orientation);
         output_data.vector_x = input_data.markers[i].scale.x *cos(output_data.yaw);
         output_data.vector_y = input_data.markers[i].scale.x *sin(output_data.yaw);
         output_data.is_match = false;
@@ -170,7 +177,7 @@ void MVEvaluator::is_person_in_local(PeopleData &cur)
 
 void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
 {
-    mv_data.resize(0);
+    mv_data.clear();
     for(int i=0;i<PEOPLE_NUM;i++){
         if(cur[i].is_person_exist_in_local){
             MoveVector temp;
@@ -181,30 +188,19 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
             temp.quaternion = cur[i].quaternion;
             temp.angular = cur[i].angular;
             mv_data.push_back(temp);
+
+            std::cout << "temp"<< temp.quaternion <<std::endl;
+            std::cout << "=====================" <<std::endl;
+            std::cout << "cur"<< cur[i].quaternion <<std::endl;
+
         }
     }
 }
 
-double MVEvaluator::potential_field(double x, double y)
+double MVEvaluator::cost_calculator(double x, double y)
 {
-    double distance = calculate_2Ddistance(x, y, 0, 0);
+    double distance = calculate_2Ddistance(x, y, current_position.x(), current_position.y());
     return (1 -distance/DISTANCE_THRESHOLD_FOR_VELODYNE);
-}
-
-double MVEvaluator::geometry_quat_to_rpy(geometry_msgs::Quaternion geometry_quat)
-{
-    double roll, pitch, yaw;
-    tf::Quaternion quat;
-    quaternionMsgToTF(geometry_quat, quat);
-    tf::Matrix3x3(quat).getRPY(roll, pitch, yaw);  //rpy are Pass by Reference
-    return yaw;
-}
-
-geometry_msgs::Quaternion MVEvaluator::rpy_to_geometry_quat(double yaw){
-    tf::Quaternion quat=tf::createQuaternionFromRPY(0,0,yaw);
-    geometry_msgs::Quaternion geometry_quat;
-    quaternionTFToMsg(quat, geometry_quat);
-    return geometry_quat;
 }
 
 void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results)
@@ -216,20 +212,29 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
         truth[i].is_match = false;
     }
 
+    results.num_of_total_vectors += truth.size();
+
     for(int i=0; i<truth.size();i++){
         double dis;
+        double min_dis = 100;
+        int min_index = 100;
         for(int j=0;j<est.size();j++){
             if(!est[j].is_match){
                 dis = calculate_2Ddistance(truth[i].point_x, truth[i].point_y, est[j].point_x, est[j].point_y);
-                if(DISTANCE_THRESHOLD_FOR_EVALUATE > dis){
-                    truth[i].is_match = true;
-                    est[j].is_match = true;
-                    results.num_of_matches++;
+                if(min_dis > dis){
+                    min_dis = dis;
+                    min_index = j;
                 }
             }
         }
+        if(DISTANCE_THRESHOLD_FOR_EVALUATE > dis){
+            truth[i].is_match = true;
+            est[min_index].is_match = true;
+            results.num_of_matches++;
+        }
         if(!truth[i].is_match){
             results.num_of_losses++;
+            results.mv_loss_penalty += LOSS_PENALTY_COEFFICIENT *cost_calculator(truth[i].point_x, truth[i].point_y);
         }
     }
 
@@ -237,6 +242,7 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
     for(int i=0; i<est.size();i++){
         if(!est[i].is_match){
             results.num_of_ghosts++;
+            results.mv_ghost_penalty += GHOST_PENALTY_COEFFICIENT *cost_calculator(est[i].point_x, est[i].point_y);
         }
         std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
     }

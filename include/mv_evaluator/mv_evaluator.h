@@ -78,6 +78,7 @@ public:
             int num_of_losses;
             int num_of_ghosts;
             int num_of_matches;
+            int num_of_total_vectors; 
             double mv_loss_penalty;
             double mv_ghost_penalty;
             double mv_match_dis;
@@ -99,9 +100,7 @@ public:
     void velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr&);
     void kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr&);
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
-    double potential_field(const double, const double);
-    double geometry_quat_to_rpy(geometry_msgs::Quaternion);
-    geometry_msgs::Quaternion rpy_to_geometry_quat(const double);
+    double cost_calculator(const double, const double);
     void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&);
     void true_markarray_transformer(MoveVectorData&);
 
@@ -109,6 +108,9 @@ private:
     bool gazebo_model_states_callback_flag = false;
     bool tracked_person_callback_flag = false;
     bool estimate_data_callback_flag = false;
+
+    double LOSS_PENALTY_COEFFICIENT;
+    double GHOST_PENALTY_COEFFICIENT;
 
     double current_yaw;
     double pre_yaw;
