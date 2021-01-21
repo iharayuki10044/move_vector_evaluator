@@ -78,6 +78,7 @@ public:
             int num_of_losses;
             int num_of_ghosts;
             int num_of_matches;
+            int num_of_total_vectors; 
             double mv_loss_penalty;
             double mv_ghost_penalty;
             double mv_match_dis;
@@ -100,8 +101,6 @@ public:
     void kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr&);
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
     double cost_calculator(const double, const double);
-    double geometry_quat_to_rpy(geometry_msgs::Quaternion);
-    geometry_msgs::Quaternion rpy_to_geometry_quat(const double);
     void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&);
     void true_markarray_transformer(MoveVectorData&);
 

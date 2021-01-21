@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <launch>
-	<arg name="people_num" default="10"/>
+	<arg name="people_num" default="20"/>
     <arg name="hz" default="10.0"/>
     <arg name="distance_threshold_for_vel" default="100"/>
     <arg name="distance_threshold_for_eva" default="1.0"/>
@@ -8,8 +8,6 @@
     <arg name="ghost_penalty_coefficient" default="1.0"/>
 
 	<arg name="pkg_path" default="/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"/>
-
-	<param name="use_sim_time" value="true"/>
 
 	<node pkg="mv_evaluator" type="mv_evaluator" name="mv_evaluator" output="screen">
 		<param name="PEOPLE_NUM" value="$(arg people_num)" type="int"/>
