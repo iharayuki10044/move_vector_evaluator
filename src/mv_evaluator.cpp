@@ -7,6 +7,7 @@ MVEvaluator::MVEvaluator(void)
     nh.param("PEOPLE_NUM", PEOPLE_NUM, {30});
 	nh.param("DISTANCE_THRESHOLD_FOR_VELODYNE", DISTANCE_THRESHOLD_FOR_VELODYNE, {3});
 	nh.param("DISTANCE_THRESHOLD_FOR_EVALIATE", DISTANCE_THRESHOLD_FOR_EVALUATE, {0.2});
+	nh.param("ANGLE_THRESHOLD", ANGLE_THRESHOLD, {45});
     nh.param("LOSS_PENALTY_COEFFICIENT", LOSS_PENALTY_COEFFICIENT, {1.0});
     nh.param("GHOST_PENALTY_COEFFICIENT", GHOST_PENALTY_COEFFICIENT, {1.0});
 	nh.param("PKG_PATH", PKG_PATH, {"/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"});
@@ -210,10 +211,12 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
             }
         }
         if(DISTANCE_THRESHOLD_FOR_EVALUATE > min_dis){
-            truth[i].is_match = true;
-            est[min_index].is_match = true;
-            results.num_of_total_matches++;
-            match_counter++;
+            if(M_PI *(ANGLE_THRESHOLD) /180 > abs(truth[i].angular.z -est[min_index].angular.z)){
+                truth[i].is_match = true;
+                est[min_index].is_match = true;
+                results.num_of_total_matches++;
+                match_counter++;
+            }
 
         }
         if(!truth[i].is_match){

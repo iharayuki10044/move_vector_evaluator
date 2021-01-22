@@ -87,6 +87,10 @@ public:
             int num_of_total_matches;
             int num_of_total_truth;
             int num_of_total_estimate;
+
+            
+
+
         private:
     };
 
@@ -121,6 +125,7 @@ private:
     double dt;
     double DISTANCE_THRESHOLD_FOR_VELODYNE;
     double DISTANCE_THRESHOLD_FOR_EVALUATE;
+    double ANGLE_THRESHOLD;
     int PEOPLE_NUM;
     int pc_seq;
     std::string PKG_PATH;
