@@ -33,12 +33,27 @@ void MVEvaluator::executor(void)
             if(estimate_data_callback_flag){
                 evaluator(mv_data, estimate_data, matching_results);
                 std::cout << "evaluate" << std::endl;
-                std::cout<< "loss = " << matching_results.num_of_losses << std::endl;
+                std::cout<< "loss = " << matching_results.num_of_total_losses << std::endl;
                 std::cout<< "loss penalty = " << matching_results.mv_loss_penalty << std::endl;
-                std::cout<< "ghost = " << matching_results.num_of_ghosts << std::endl;
+                std::cout<< "ghost = " << matching_results.num_of_total_ghosts << std::endl;
                 std::cout<< "ghost penalty = " << matching_results.mv_ghost_penalty << std::endl;
-                std::cout<< "match = " << matching_results.num_of_matches << std::endl;
-                std::cout<< "total vec = " << matching_results.num_of_total_vectors << std::endl;
+                std::cout<< "match = " << matching_results.num_of_total_matches << std::endl;
+                std::cout<< "total tru = " << matching_results.num_of_total_truth << std::endl;
+                std::cout<< "total est = " << matching_results.num_of_total_estimate << std::endl;
+                std::cout<< "loss = " << matching_results.num_of_losses <<std::endl;
+                std::cout<< "ghost = " << matching_results.num_of_ghosts <<std::endl;
+                std::cout<< "match = " << matching_results.num_of_matches <<std::endl;
+                std::cout<< "tru = " << matching_results.num_of_truth << std::endl;
+                std::cout<< "est = " << matching_results.num_of_estimate << std::endl;
+                std::cout<< "size ave = " << matching_results.mv_size_average << std::endl;
+                std::cout<< "size dis = " << matching_results.mv_size_distribute << std::endl; 
+                std::cout<< "angle ave = " << matching_results.mv_angle_average << std::endl;
+                std::cout<< "angle dis = " << matching_results.mv_angle_distribute << std::endl;
+                std::cout<< "x ave = " << matching_results.mv_x_average << std::endl;
+                std::cout<< "x dis = " << matching_results.mv_x_distribute << std::endl;
+                std::cout<< "y ave = " << matching_results.mv_y_average << std::endl;
+                std::cout<< "y dis = " << matching_results.mv_y_distribute << std::endl; 
+
             }
         }
         gazebo_model_states_callback_flag = false;
@@ -68,14 +83,25 @@ void MVEvaluator::formatter(void)
 	pre_people_data.resize(PEOPLE_NUM);
     mv_data.resize(0);
 
-    matching_results.num_of_losses = 0;
-    matching_results.num_of_ghosts = 0;
-    matching_results.num_of_matches = 0;
-    matching_results.num_of_total_vectors = 0;
+    matching_results.num_of_total_losses = 0;
+    matching_results.num_of_total_ghosts = 0;
+    matching_results.num_of_total_matches = 0;
+    matching_results.num_of_total_truth = 0;
     matching_results.mv_loss_penalty = 0.0;
     matching_results.mv_ghost_penalty = 0.0;
-    matching_results.mv_match_dis = 0.0;
-    matching_results.mv_match_ave = 0.0;
+
+    matching_results.mv_size_distribute;
+    matching_results.mv_size_average;
+    matching_results.mv_size_square_average;
+    matching_results.mv_angle_distribute;
+    matching_results.mv_angle_average;
+    matching_results.mv_angle_square_average;
+    matching_results.mv_x_distribute;
+    matching_results.mv_x_average;
+    matching_results.mv_x_square_average;
+    matching_results.mv_y_distribute;
+    matching_results.mv_y_average;
+    matching_results.mv_y_square_average;
 
 }
 
@@ -114,7 +140,10 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
     current_people_data[i].move_vector_x = tracked_person.tracks[i].twist.twist.linear.x;
     current_people_data[i].move_vector_y = tracked_person.tracks[i].twist.twist.linear.y;
     current_people_data[i].quaternion = tracked_person.tracks[i].pose.pose.orientation;
-    current_people_data[i].angular = tracked_person.tracks[i].twist.twist.angular;
+    current_people_data[i].linear = tracked_person.tracks[i].twist.twist.linear;
+    current_people_data[i].linear.x = sqrt(tracked_person.tracks[i].twist.twist.linear.x *tracked_person.tracks[i].twist.twist.linear.x 
+                                        +tracked_person.tracks[i].twist.twist.linear.y *tracked_person.tracks[i].twist.twist.linear.y);
+    current_people_data[i].angular.z = atan2_positive(current_people_data[i].move_vector_y, current_people_data[i].move_vector_x);
     }
     // std::cout<<"qu = "<< tracked_person <<std::endl;
 	tracked_person_callback_flag = true;
@@ -137,10 +166,11 @@ void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::Co
         output_data.point_y = input_data.markers[i].pose.position.y;
         output_data.vector_x = input_data.markers[i].scale.x *cos(output_data.yaw);
         output_data.vector_y = input_data.markers[i].scale.x *sin(output_data.yaw);
+        output_data.linear.x =  input_data.markers[i].scale.x;
+        output_data.angular.z =  tf::getYaw(input_data.markers[i].pose.orientation);
         output_data.is_match = false;
         estimate_data.push_back(output_data);
     }
-
     estimate_data_callback_flag = true;
 }
 
@@ -186,13 +216,9 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
             temp.point_x = cur[i].point_x;
             temp.point_y = cur[i].point_y;
             temp.quaternion = cur[i].quaternion;
+            temp.linear = cur[i].linear;
             temp.angular = cur[i].angular;
             mv_data.push_back(temp);
-
-            std::cout << "temp"<< temp.quaternion <<std::endl;
-            std::cout << "=====================" <<std::endl;
-            std::cout << "cur"<< cur[i].quaternion <<std::endl;
-
         }
     }
 }
@@ -211,8 +237,23 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
     for(int i=0; i<truth.size();i++){
         truth[i].is_match = false;
     }
+    int loss_counter =0;
+    int ghost_counter =0; 
+    int match_counter =0;
+    results.num_of_total_truth += truth.size();
+    results.num_of_total_estimate += est.size();
+    results.num_of_truth = truth.size();
+    results.num_of_estimate = est.size();
 
-    results.num_of_total_vectors += truth.size();
+    std::vector<double> error_mv_size;
+    std::vector<double> error_mv_angle;
+    std::vector<double> error_mv_x;
+    std::vector<double> error_mv_y;
+
+    error_mv_size.clear();
+    error_mv_angle.clear();
+    error_mv_x.clear();
+    error_mv_y.clear();
 
     for(int i=0; i<truth.size();i++){
         double dis;
@@ -227,24 +268,50 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
                 }
             }
         }
-        if(DISTANCE_THRESHOLD_FOR_EVALUATE > dis){
+        if(DISTANCE_THRESHOLD_FOR_EVALUATE > min_dis){
             truth[i].is_match = true;
             est[min_index].is_match = true;
-            results.num_of_matches++;
+            results.num_of_total_matches++;
+            match_counter++;
+
+            error_mv_size.push_back(abs(est[min_index].linear.x -truth[i].linear.x));
+            error_mv_angle.push_back(abs(est[min_index].angular.z -truth[i].angular.z));
+            error_mv_x.push_back(abs(est[min_index].point_x -truth[i].point_x));
+            error_mv_y.push_back(abs(est[min_index].point_y -truth[i].point_y));
+
         }
         if(!truth[i].is_match){
-            results.num_of_losses++;
+            results.num_of_total_losses++;
+            loss_counter++;
             results.mv_loss_penalty += LOSS_PENALTY_COEFFICIENT *cost_calculator(truth[i].point_x, truth[i].point_y);
         }
     }
 
+    for(int i=0;i<match_counter;i++){
+            results.mv_size_average += error_mv_size[i]/results.num_of_total_matches;
+            results.mv_angle_average += error_mv_angle[i]/results.num_of_total_matches;
+            results.mv_x_average += error_mv_x[i]/results.num_of_total_matches;
+            results.mv_y_average += error_mv_y[i]/results.num_of_total_matches;
+        }
+
+        results.mv_size_distribute = results.mv_size_square_average - results.mv_size_average *results.mv_size_average;
+        results.mv_angle_distribute = results.mv_angle_square_average - results.mv_angle_average *results.mv_angle_average;
+        results.mv_x_distribute = results.mv_x_square_average - results.mv_x_average *results.mv_x_average;
+        results.mv_y_distribute = results.mv_y_square_average - results.mv_y_average *results.mv_y_average;
+
     std::cout<<"estimate"<<std::endl;
     for(int i=0; i<est.size();i++){
         if(!est[i].is_match){
-            results.num_of_ghosts++;
+            ghost_counter++;
+            results.num_of_total_ghosts++;
             results.mv_ghost_penalty += GHOST_PENALTY_COEFFICIENT *cost_calculator(est[i].point_x, est[i].point_y);
         }
-        std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
+        // std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
+
+    results.num_of_losses = loss_counter;
+    results.num_of_ghosts = ghost_counter;
+    results.num_of_matches = match_counter; 
+
     }
 }
 
