@@ -50,6 +50,7 @@ public:
             double local_point_x;
             double local_point_y;
             geometry_msgs::Quaternion quaternion;
+            geometry_msgs::Vector3 linear;
             geometry_msgs::Vector3 angular;
             bool is_person_exist_in_local;
         private:
@@ -66,6 +67,7 @@ public:
             double yaw;
             double cost;
             geometry_msgs::Quaternion quaternion;
+            geometry_msgs::Vector3 linear;
             geometry_msgs::Vector3 angular;
             bool is_match;
         private:
@@ -78,6 +80,8 @@ public:
             int num_of_losses;
             int num_of_ghosts;
             int num_of_matches;
+            int num_of_truth;
+            int num_of_estimate;
             int num_of_total_losses;
             int num_of_total_ghosts;
             int num_of_total_matches;
@@ -85,8 +89,25 @@ public:
             int num_of_total_estimate;
             double mv_loss_penalty;
             double mv_ghost_penalty;
-            double mv_match_dis;
-            double mv_match_ave;
+
+            double mv_size_distribute;
+            double mv_size_average;
+            double mv_size_square_average;
+
+
+            double mv_angle_distribute;
+            double mv_angle_average;
+            double mv_angle_square_average;
+
+
+            double mv_x_distribute;
+            double mv_x_average;
+            double mv_x_square_average;
+
+            double mv_y_distribute;
+            double mv_y_average;
+            double mv_y_square_average;
+
         private:
     };
 

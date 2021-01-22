@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <launch>
-	<arg name="people_num" default="20"/>
+	<arg name="people_num" default="30"/>
     <arg name="hz" default="10.0"/>
     <arg name="distance_threshold_for_veldyne" default="100"/>
-    <arg name="distance_threshold_for_eva" default="3.0"/>
+    <arg name="distance_threshold_for_eva" default="1.0"/>
     <arg name="loss_penalty_coefficient" default="1.0"/>
     <arg name="ghost_penalty_coefficient" default="1.0"/>
 
