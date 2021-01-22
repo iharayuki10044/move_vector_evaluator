@@ -87,16 +87,25 @@ public:
             int num_of_total_matches;
             int num_of_total_truth;
             int num_of_total_estimate;
-
-            
-
-
         private:
     };
+
+    class Grid
+    {
+        public:
+            double radius;
+            double theta;
+            int num_of_loss;
+            int num_of_ghost;
+        private:
+    };
+    typedef std::vector<Grid> MissCounter;
 
     MVEvaluator(void);
 
     int find_num_from_name(const std::string& , const std::vector<std::string> &);
+    int get_index_from_radiustheta(const double, const double);
+    void xy_transrate_rtheta(const double, const double, double, double);
     double calculate_2Ddistance(const double, const double, const double, const double);
     double atan2_positive(const double, const double);
 
@@ -110,6 +119,7 @@ public:
     double cost_calculator(const double, const double);
     void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&);
     void true_markarray_transformer(MoveVectorData&);
+    void results_register(MoveVectorData&, MoveVectorData&);
 
 private:
     bool gazebo_model_states_callback_flag = false;
@@ -126,8 +136,12 @@ private:
     double DISTANCE_THRESHOLD_FOR_VELODYNE;
     double DISTANCE_THRESHOLD_FOR_EVALUATE;
     double ANGLE_THRESHOLD;
+    double ANGLE_RESOLUTION;
+    double RADIUS_RESOLUTION;
     int PEOPLE_NUM;
     int pc_seq;
+    int miss_counter_angle_index;
+    int miss_counter_radius_index;
     std::string PKG_PATH;
 
     PeopleData current_people_data;
@@ -135,6 +149,7 @@ private:
     MoveVectorData mv_data;
     MoveVectorData estimate_data;
     MatchingResults matching_results;
+    MissCounter miss_counter;
 
     ros::NodeHandle nh;
 	ros::Subscriber gazebo_model_states_subscriber;

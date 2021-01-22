@@ -42,6 +42,7 @@ void MVEvaluator::executor(void)
                 std::cout<< "match = " << matching_results.num_of_matches <<std::endl;
                 std::cout<< "tru = " << matching_results.num_of_truth << std::endl;
                 std::cout<< "est = " << matching_results.num_of_estimate << std::endl;
+                results_register(mv_data, estimate_data);
             }
         }
         gazebo_model_states_callback_flag = false;
@@ -66,6 +67,18 @@ void MVEvaluator::formatter(void)
     estimate_data_callback_flag = false;
 
 	dt = 1.0 / Hz;
+    miss_counter_angle_index = 360 /ANGLE_RESOLUTION;
+    miss_counter_radius_index = DISTANCE_THRESHOLD_FOR_VELODYNE /RADIUS_RESOLUTION;
+    int grid_num = miss_counter_radius_index *miss_counter_angle_index;
+    miss_counter.clear();
+    Grid temp;
+    for(int i=0;i<grid_num;i++){
+        temp.num_of_loss = 0;
+        temp.num_of_ghost = 0;
+        miss_counter.push_back(temp);
+    }
+
+
 
     current_people_data.resize(PEOPLE_NUM);
 	pre_people_data.resize(PEOPLE_NUM);
@@ -75,7 +88,20 @@ void MVEvaluator::formatter(void)
     matching_results.num_of_total_ghosts = 0;
     matching_results.num_of_total_matches = 0;
     matching_results.num_of_total_truth = 0;
+}
 
+int MVEvaluator::get_index_from_radiustheta(const double theta, const double radius)
+{
+    double a_resolution = ANGLE_RESOLUTION *M_PI /180;
+    int _r = floor(radius /RADIUS_RESOLUTION + 0.5);
+    int _t = floor(theta /a_resolution + 0.5);
+    return _t + _r * miss_counter_radius_index;
+}
+
+void MVEvaluator::xy_transrate_rtheta(const double x, const double y, double r, double theta)
+{
+    r = calculate_2Ddistance(x, y, 0, 0);
+    theta = atan2_positive(y, x);
 }
 
 int MVEvaluator::find_num_from_name(const std::string &name,const std::vector<std::string> &states)
@@ -217,7 +243,6 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
                 results.num_of_total_matches++;
                 match_counter++;
             }
-
         }
         if(!truth[i].is_match){
             results.num_of_total_losses++;
@@ -232,12 +257,11 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
             results.num_of_total_ghosts++;
         }
         // std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
-
+    }
     results.num_of_losses = loss_counter;
     results.num_of_ghosts = ghost_counter;
     results.num_of_matches = match_counter; 
 
-    }
 }
 
 void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
@@ -263,4 +287,32 @@ void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
     }
 
     truth_markarray_publisher.publish(arrows);
+}
+
+void MVEvaluator::results_register(MoveVectorData &truth, MoveVectorData &est)
+{
+    double relative_x;
+    double relative_y;
+    double radius;
+    double theta;
+    int index;
+
+    for(int i=0; i<truth.size();i++){
+        if(!truth[i].is_match){
+            relative_x = truth[i].point_x - current_position.x();
+            relative_y = truth[i].point_y - current_position.y();
+            xy_transrate_rtheta(relative_x, relative_y, radius, theta);
+            index = get_index_from_radiustheta(radius, theta);
+            miss_counter[index].num_of_loss++;
+        }
+    }
+    for(int i=0;i<est.size();i++){
+        if(!est[i].is_match){
+            relative_x = est[i].point_x - current_position.x();
+            relative_y = est[i].point_y - current_position.y();
+            xy_transrate_rtheta(relative_x, relative_y, radius, theta);
+            index = get_index_from_radiustheta(radius, theta);
+            miss_counter[index].num_of_ghost++;
+        }
+    }
 }
