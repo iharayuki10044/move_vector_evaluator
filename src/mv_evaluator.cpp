@@ -7,7 +7,8 @@ MVEvaluator::MVEvaluator(void)
     nh.param("PEOPLE_NUM", PEOPLE_NUM, {30});
 	nh.param("DISTANCE_THRESHOLD_FOR_VELODYNE", DISTANCE_THRESHOLD_FOR_VELODYNE, {3});
 	nh.param("DISTANCE_THRESHOLD_FOR_EVALIATE", DISTANCE_THRESHOLD_FOR_EVALUATE, {0.2});
-	nh.param("ANGLE_THRESHOLD", ANGLE_THRESHOLD, {45});
+	nh.param("ANGLE_RESOLUTION", ANGLE_RESOLUTION, {45});
+	nh.param("RADIUS_RESOLUTION", RADIUS_RESOLUTION, {0.1});
     nh.param("LOSS_PENALTY_COEFFICIENT", LOSS_PENALTY_COEFFICIENT, {1.0});
     nh.param("GHOST_PENALTY_COEFFICIENT", GHOST_PENALTY_COEFFICIENT, {1.0});
 	nh.param("PKG_PATH", PKG_PATH, {"/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"});
@@ -28,7 +29,7 @@ void MVEvaluator::executor(void)
             // std::cout << "calculate move vector"<< std::endl;
             cp_peopledata_2_mv(current_people_data, mv_data);
             true_markarray_transformer(mv_data);
-        
+            std::cout << "truth num = " << mv_data.size() << std::endl;
             if(estimate_data_callback_flag){
                 evaluator(mv_data, estimate_data, matching_results);
                 std::cout << "evaluate" << std::endl;
@@ -77,8 +78,6 @@ void MVEvaluator::formatter(void)
         temp.num_of_ghost = 0;
         miss_counter.push_back(temp);
     }
-
-
 
     current_people_data.resize(PEOPLE_NUM);
 	pre_people_data.resize(PEOPLE_NUM);
@@ -187,7 +186,6 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
 {
     mv_data.clear();
     for(int i=0;i<PEOPLE_NUM;i++){
-        if(cur[i].is_person_exist_in_local){
             MoveVector temp;
             temp.vector_x = cur[i].move_vector_x;
             temp.vector_y = cur[i].move_vector_y;
@@ -197,7 +195,6 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
             temp.linear = cur[i].linear;
             temp.angular = cur[i].angular;
             mv_data.push_back(temp);
-        }
     }
 }
 
@@ -256,8 +253,9 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
             ghost_counter++;
             results.num_of_total_ghosts++;
         }
-        // std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
+        std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
     }
+    
     results.num_of_losses = loss_counter;
     results.num_of_ghosts = ghost_counter;
     results.num_of_matches = match_counter; 
