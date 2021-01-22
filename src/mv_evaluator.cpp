@@ -14,7 +14,6 @@ MVEvaluator::MVEvaluator(void)
     gazebo_model_states_subscriber = nh.subscribe("/gazebo/model_states", 10, &MVEvaluator::gazebo_model_states_callback, this);
 	tracked_person_subscriber = nh.subscribe("/pedsim_visualizer/tracked_persons", 10, &MVEvaluator::tracked_person_callback, this);
     kf_tracking_subscriber = nh.subscribe("/obstacles_trajectory_predictor_demo/velocity_arrows", 10, &MVEvaluator::kf_tracking_callback, this);
-    velodyne_points_subscriber = nh.subscribe("/velodyne_points", 10, &MVEvaluator::velodyne_callback, this);
     truth_markarray_publisher = nh.advertise<visualization_msgs::MarkerArray>("/truth_velocity_arrows", 1);
 }
 
@@ -26,7 +25,6 @@ void MVEvaluator::executor(void)
         std::cout << "==MVEvaluator=="<< std::endl;
         if(gazebo_model_states_callback_flag && tracked_person_callback_flag){
             // std::cout << "calculate move vector"<< std::endl;
-            is_person_in_local(current_people_data);
             cp_peopledata_2_mv(current_people_data, mv_data);
             true_markarray_transformer(mv_data);
         
@@ -34,9 +32,7 @@ void MVEvaluator::executor(void)
                 evaluator(mv_data, estimate_data, matching_results);
                 std::cout << "evaluate" << std::endl;
                 std::cout<< "loss = " << matching_results.num_of_total_losses << std::endl;
-                std::cout<< "loss penalty = " << matching_results.mv_loss_penalty << std::endl;
                 std::cout<< "ghost = " << matching_results.num_of_total_ghosts << std::endl;
-                std::cout<< "ghost penalty = " << matching_results.mv_ghost_penalty << std::endl;
                 std::cout<< "match = " << matching_results.num_of_total_matches << std::endl;
                 std::cout<< "total tru = " << matching_results.num_of_total_truth << std::endl;
                 std::cout<< "total est = " << matching_results.num_of_total_estimate << std::endl;
@@ -45,15 +41,6 @@ void MVEvaluator::executor(void)
                 std::cout<< "match = " << matching_results.num_of_matches <<std::endl;
                 std::cout<< "tru = " << matching_results.num_of_truth << std::endl;
                 std::cout<< "est = " << matching_results.num_of_estimate << std::endl;
-                std::cout<< "size ave = " << matching_results.mv_size_average << std::endl;
-                std::cout<< "size dis = " << matching_results.mv_size_distribute << std::endl; 
-                std::cout<< "angle ave = " << matching_results.mv_angle_average << std::endl;
-                std::cout<< "angle dis = " << matching_results.mv_angle_distribute << std::endl;
-                std::cout<< "x ave = " << matching_results.mv_x_average << std::endl;
-                std::cout<< "x dis = " << matching_results.mv_x_distribute << std::endl;
-                std::cout<< "y ave = " << matching_results.mv_y_average << std::endl;
-                std::cout<< "y dis = " << matching_results.mv_y_distribute << std::endl; 
-
             }
         }
         gazebo_model_states_callback_flag = false;
@@ -87,21 +74,6 @@ void MVEvaluator::formatter(void)
     matching_results.num_of_total_ghosts = 0;
     matching_results.num_of_total_matches = 0;
     matching_results.num_of_total_truth = 0;
-    matching_results.mv_loss_penalty = 0.0;
-    matching_results.mv_ghost_penalty = 0.0;
-
-    matching_results.mv_size_distribute;
-    matching_results.mv_size_average;
-    matching_results.mv_size_square_average;
-    matching_results.mv_angle_distribute;
-    matching_results.mv_angle_average;
-    matching_results.mv_angle_square_average;
-    matching_results.mv_x_distribute;
-    matching_results.mv_x_average;
-    matching_results.mv_x_square_average;
-    matching_results.mv_y_distribute;
-    matching_results.mv_y_average;
-    matching_results.mv_y_square_average;
 
 }
 
@@ -149,13 +121,6 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
 	tracked_person_callback_flag = true;
 }
 
-void MVEvaluator::velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr& msg)
-{
-    sensor_msgs::PointCloud2 input_pc = *msg;
-    // std::cout << "number of point = " << input_pc.data.size() << std::endl;
-
-}
-
 void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr& msg)
 {
     visualization_msgs::MarkerArray input_data = *msg;
@@ -189,20 +154,6 @@ double MVEvaluator::calculate_2Ddistance(const double x, const double y, const d
     double delta_x = x - _x;
     double delta_y = y - _y;
 	return sqrt(delta_x *delta_x + delta_y *delta_y);
-}
-
-
-void MVEvaluator::is_person_in_local(PeopleData &cur)
-{
-    for(int i=0;i<PEOPLE_NUM;i++){
-        double distance = calculate_2Ddistance(cur[i].point_x, cur[i].point_y, current_position.x(), current_position.y());
-        if(distance < DISTANCE_THRESHOLD_FOR_VELODYNE){
-            cur[i].is_person_exist_in_local = true;
-        }
-        else{
-            cur[i].is_person_exist_in_local = false;
-        }
-    }
 }
 
 void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
@@ -245,16 +196,6 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
     results.num_of_truth = truth.size();
     results.num_of_estimate = est.size();
 
-    std::vector<double> error_mv_size;
-    std::vector<double> error_mv_angle;
-    std::vector<double> error_mv_x;
-    std::vector<double> error_mv_y;
-
-    error_mv_size.clear();
-    error_mv_angle.clear();
-    error_mv_x.clear();
-    error_mv_y.clear();
-
     for(int i=0; i<truth.size();i++){
         double dis;
         double min_dis = 100;
@@ -274,37 +215,18 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
             results.num_of_total_matches++;
             match_counter++;
 
-            error_mv_size.push_back(abs(est[min_index].linear.x -truth[i].linear.x));
-            error_mv_angle.push_back(abs(est[min_index].angular.z -truth[i].angular.z));
-            error_mv_x.push_back(abs(est[min_index].point_x -truth[i].point_x));
-            error_mv_y.push_back(abs(est[min_index].point_y -truth[i].point_y));
-
         }
         if(!truth[i].is_match){
             results.num_of_total_losses++;
             loss_counter++;
-            results.mv_loss_penalty += LOSS_PENALTY_COEFFICIENT *cost_calculator(truth[i].point_x, truth[i].point_y);
         }
     }
-
-    for(int i=0;i<match_counter;i++){
-            results.mv_size_average += error_mv_size[i]/results.num_of_total_matches;
-            results.mv_angle_average += error_mv_angle[i]/results.num_of_total_matches;
-            results.mv_x_average += error_mv_x[i]/results.num_of_total_matches;
-            results.mv_y_average += error_mv_y[i]/results.num_of_total_matches;
-        }
-
-        results.mv_size_distribute = results.mv_size_square_average - results.mv_size_average *results.mv_size_average;
-        results.mv_angle_distribute = results.mv_angle_square_average - results.mv_angle_average *results.mv_angle_average;
-        results.mv_x_distribute = results.mv_x_square_average - results.mv_x_average *results.mv_x_average;
-        results.mv_y_distribute = results.mv_y_square_average - results.mv_y_average *results.mv_y_average;
 
     std::cout<<"estimate"<<std::endl;
     for(int i=0; i<est.size();i++){
         if(!est[i].is_match){
             ghost_counter++;
             results.num_of_total_ghosts++;
-            results.mv_ghost_penalty += GHOST_PENALTY_COEFFICIENT *cost_calculator(est[i].point_x, est[i].point_y);
         }
         // std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
 

@@ -87,27 +87,6 @@ public:
             int num_of_total_matches;
             int num_of_total_truth;
             int num_of_total_estimate;
-            double mv_loss_penalty;
-            double mv_ghost_penalty;
-
-            double mv_size_distribute;
-            double mv_size_average;
-            double mv_size_square_average;
-
-
-            double mv_angle_distribute;
-            double mv_angle_average;
-            double mv_angle_square_average;
-
-
-            double mv_x_distribute;
-            double mv_x_average;
-            double mv_x_square_average;
-
-            double mv_y_distribute;
-            double mv_y_average;
-            double mv_y_square_average;
-
         private:
     };
 
@@ -116,7 +95,6 @@ public:
     int find_num_from_name(const std::string& , const std::vector<std::string> &);
     double calculate_2Ddistance(const double, const double, const double, const double);
     double atan2_positive(const double, const double);
-    void is_person_in_local(PeopleData&);
 
     void executor(void);
     void formatter(void);
@@ -156,7 +134,6 @@ private:
     ros::NodeHandle nh;
 	ros::Subscriber gazebo_model_states_subscriber;
     ros::Subscriber tracked_person_subscriber;
-    ros::Subscriber velodyne_points_subscriber;
     ros::Subscriber kf_tracking_subscriber;
     ros::Publisher truth_markarray_publisher;
 
