@@ -11,6 +11,8 @@ MVEvaluator::MVEvaluator(void)
     nh.param("ANGLE_RESOLUTION", ANGLE_RESOLUTION, {1});
 	nh.param("RADIUS_RESOLUTION", RADIUS_RESOLUTION, {0.1});
 	nh.param("HUMAN_THRESHOLD", HUMAN_THRESHOLD, {1.0});
+    nh.param("WALL_SIZE_X", WALL_SIZE_X, {18});
+    nh.param("WALL_SIZE_Y", WALL_SIZE_Y, {16});
     nh.param("LOSS_PENALTY_COEFFICIENT", LOSS_PENALTY_COEFFICIENT, {1.0});
     nh.param("GHOST_PENALTY_COEFFICIENT", GHOST_PENALTY_COEFFICIENT, {1.0});
 	nh.param("PKG_PATH", PKG_PATH, {"/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"});
@@ -36,7 +38,7 @@ void MVEvaluator::executor(void)
             std::cout << "people num = " << miss_counter_ap.size() << std::endl;
 
             if(estimate_data_callback_flag){
-                evaluator(mv_data, estimate_data, matching_results);
+                evaluator(mv_data, estimate_data, matching_results, loss_position_record, ghost_position_record);
                 std::cout << "evaluate" << std::endl;
                 std::cout<< "loss = " << matching_results.num_of_total_losses << std::endl;
                 std::cout<< "ghost = " << matching_results.num_of_total_ghosts << std::endl;
@@ -49,6 +51,7 @@ void MVEvaluator::executor(void)
                 std::cout<< "tru = " << matching_results.num_of_truth << std::endl;
                 std::cout<< "est = " << matching_results.num_of_estimate << std::endl;
                 results_register(mv_data, estimate_data);
+                results_writer(loss_position_record,ghost_position_record);
             }
         }
         gazebo_model_states_callback_flag = false;
@@ -108,6 +111,12 @@ void MVEvaluator::xy_transrate_rtheta(const double x, const double y, double r, 
 {
     r = calculate_2Ddistance(x, y, 0, 0);
     theta = atan2_positive(y, x);
+}
+
+void MVEvaluator::rtheta_transrate_xy(const double r, const double theta, double x, double y)
+{
+    x = r *cos(theta);
+    y = r *sin(theta);
 }
 
 int MVEvaluator::find_num_from_name(const std::string &name,const std::vector<std::string> &states)
@@ -184,7 +193,6 @@ void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::Co
     estimate_data_callback_flag = true;
 }
 
-
 double MVEvaluator::atan2_positive(double y, double x)
 {
     double theta = atan2(y ,x);
@@ -240,7 +248,7 @@ double MVEvaluator::cost_calculator(double x, double y)
     return (1 -distance/DISTANCE_THRESHOLD_FOR_VELODYNE);
 }
 
-void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results)
+void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results, MissPositionRecord& loss_position, MissPositionRecord& ghost_position)
 {
     for(int i=0; i<est.size();i++){
         est[i].is_match = false;
@@ -248,6 +256,11 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
     for(int i=0; i<truth.size();i++){
         truth[i].is_match = false;
     }
+
+    loss_position.clear();
+    ghost_position.clear();
+    geometry_msgs::Pose2D temp;
+
     int loss_counter =0;
     int ghost_counter =0; 
     int match_counter =0;
@@ -292,6 +305,9 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
         if(!truth[i].is_match){
             results.num_of_total_losses++;
             loss_counter++;
+            temp.x = truth[i].point_x;
+            temp.y = truth[i].point_y;
+            loss_position.push_back(temp);
         }
     }
 
@@ -300,6 +316,9 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
         if(!est[i].is_match){
             ghost_counter++;
             results.num_of_total_ghosts++;
+            temp.x = est[i].point_x;
+            temp.y = est[i].point_y;
+            ghost_position.push_back(temp);
         }
         std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
     }
@@ -359,4 +378,25 @@ void MVEvaluator::results_register(MoveVectorData &truth, MoveVectorData &est)
             miss_counter[index].num_of_ghost++;
         }
     }
+}
+
+void MVEvaluator::results_writer(MissPositionRecord& loss, MissPositionRecord& ghost)
+{
+    std::ofstream record_file;
+    record_file.open(std::string(PKG_PATH + "/records/loss_records.csv") ,std::ios::app);
+    for(int i=0; i<loss.size(); i++){
+        if( (fabs(loss[i].x - current_position.x()) < WALL_SIZE_X /2) && ((fabs(loss[i].y - current_position.y()) < WALL_SIZE_Y /2)) ){
+        record_file << loss[i].x - current_position.x() << "," << loss[i].y - current_position.y() << "\n";
+        }
+    }
+    record_file.close();
+
+    std::ofstream record_file_2;
+    record_file_2.open(std::string(PKG_PATH + "/records/ghost_records.csv") ,std::ios::app);
+    for(int i=0; i<ghost.size(); i++){
+        if( (fabs(ghost[i].x - current_position.x()) < WALL_SIZE_X /2) && ((fabs(ghost[i].y - current_position.y()) < WALL_SIZE_Y /2)) ){
+        record_file_2 << ghost[i].x - current_position.x() << "," << ghost[i].y - current_position.y() << "\n";
+        }
+    }
+    record_file_2.close();
 }

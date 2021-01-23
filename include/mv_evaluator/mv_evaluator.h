@@ -37,6 +37,10 @@
 
 #include <gazebo_msgs/ModelStates.h>
 
+#include <iostream>
+#include <fstream>
+
+
 class MVEvaluator
 {
 public:
@@ -109,12 +113,14 @@ public:
         private:
     };
     typedef std::vector<Register> MissCounterAroundPeople;
+    typedef std::vector<geometry_msgs::Pose2D> MissPositionRecord;
 
     MVEvaluator(void);
 
     int find_num_from_name(const std::string& , const std::vector<std::string> &);
     int get_index_from_radiustheta(const double, const double);
     void xy_transrate_rtheta(const double, const double, double, double);
+    void rtheta_transrate_xy(const double, const double, double, double);
     double calculate_2Ddistance(const double, const double, const double, const double);
     double atan2_positive(const double, const double);
     double radian_positive_transformer(double);
@@ -128,9 +134,10 @@ public:
     void kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr&);
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
     double cost_calculator(const double, const double);
-    void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&);
+    void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&, MissPositionRecord&, MissPositionRecord&);
     void true_markarray_transformer(MoveVectorData&);
     void results_register(MoveVectorData&, MoveVectorData&);
+    void results_writer(MissPositionRecord&, MissPositionRecord&);
 
 private:
     bool gazebo_model_states_callback_flag = false;
@@ -152,6 +159,8 @@ private:
     double RADIUS_RESOLUTION;
     double HUMAN_THRESHOLD;
     int PEOPLE_NUM;
+    int WALL_SIZE_X;
+    int WALL_SIZE_Y;
     int pc_seq;
     int miss_counter_angle_index;
     int miss_counter_radius_index;
@@ -164,6 +173,8 @@ private:
     MatchingResults matching_results;
     MissCounter miss_counter;
     MissCounterAroundPeople miss_counter_ap;
+    MissPositionRecord loss_position_record;
+    MissPositionRecord ghost_position_record;
 
     ros::NodeHandle nh;
 	ros::Subscriber gazebo_model_states_subscriber;
