@@ -34,9 +34,6 @@ void MVEvaluator::executor(void)
             cp_peopledata_2_mv(current_people_data, mv_data);
             true_markarray_transformer(mv_data);
 
-            std::cout << "people num = " << PEOPLE_NUM << std::endl;
-            std::cout << "people num = " << miss_counter_ap.size() << std::endl;
-
             if(estimate_data_callback_flag){
                 evaluator(mv_data, estimate_data, matching_results, loss_position_record, ghost_position_record);
                 std::cout << "evaluate" << std::endl;
@@ -52,6 +49,7 @@ void MVEvaluator::executor(void)
                 std::cout<< "est = " << matching_results.num_of_estimate << std::endl;
                 results_register(mv_data, estimate_data);
                 results_writer(loss_position_record,ghost_position_record);
+                results_evaluator(miss_counter_angle, miss_counter_ap);
             }
         }
         gazebo_model_states_callback_flag = false;
@@ -87,6 +85,11 @@ void MVEvaluator::formatter(void)
         temp.num_of_ghost = 0;
         miss_counter.push_back(temp);
     }
+    for(int i=0;i<miss_counter_angle_index;i++){
+        temp.num_of_loss = 0;
+        temp.num_of_ghost = 0;
+        miss_counter_angle.push_back(temp);
+    }
 
     current_people_data.resize(PEOPLE_NUM);
 	pre_people_data.resize(PEOPLE_NUM);
@@ -107,13 +110,14 @@ int MVEvaluator::get_index_from_radiustheta(const double theta, const double rad
     return _t + _r * miss_counter_radius_index;
 }
 
-void MVEvaluator::xy_transrate_rtheta(const double x, const double y, double r, double theta)
+void MVEvaluator::xy_transrate_rtheta(const double x, const double y, double &r, double &theta)
 {
     r = calculate_2Ddistance(x, y, 0, 0);
     theta = atan2_positive(y, x);
+    std::cout << "x = "<< x << " y = " << y << " r = " << r << " theta = " << theta << std::endl;
 }
 
-void MVEvaluator::rtheta_transrate_xy(const double r, const double theta, double x, double y)
+void MVEvaluator::rtheta_transrate_xy(const double r, const double theta, double &x, double &y)
 {
     x = r *cos(theta);
     y = r *sin(theta);
@@ -197,8 +201,8 @@ double MVEvaluator::atan2_positive(double y, double x)
 {
     double theta = atan2(y ,x);
     if(theta < 0){
-            theta += 2 *M_PI;
-        }
+        theta += 2 *M_PI;
+    }
     return theta;
 }
 
@@ -206,7 +210,6 @@ double MVEvaluator::radian_positive_transformer(double radian)
 {
     if(radian < 0){
         radian = radian + 2 *M_PI;
-        std::cout << "#### "<< std::endl;
     }
     return radian;
 }
@@ -230,22 +233,22 @@ void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
 {
     mv_data.clear();
     for(int i=0;i<PEOPLE_NUM;i++){
-            MoveVector temp;
-            temp.vector_x = cur[i].move_vector_x;
-            temp.vector_y = cur[i].move_vector_y;
-            temp.point_x = cur[i].point_x;
-            temp.point_y = cur[i].point_y;
-            temp.quaternion = cur[i].quaternion;
-            temp.linear = cur[i].linear;
-            temp.angular = cur[i].angular;
-            mv_data.push_back(temp);
+        MoveVector temp;
+        temp.vector_x = cur[i].move_vector_x;
+        temp.vector_y = cur[i].move_vector_y;
+        temp.point_x = cur[i].point_x;
+        temp.point_y = cur[i].point_y;
+        temp.quaternion = cur[i].quaternion;
+        temp.linear = cur[i].linear;
+        temp.angular = cur[i].angular;
+        mv_data.push_back(temp);
     }
 }
 
 double MVEvaluator::cost_calculator(double x, double y)
 {
     double distance = calculate_2Ddistance(x, y, current_position.x(), current_position.y());
-    return (1 -distance/DISTANCE_THRESHOLD_FOR_VELODYNE);
+    return (1 - distance/DISTANCE_THRESHOLD_FOR_VELODYNE);
 }
 
 void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results, MissPositionRecord& loss_position, MissPositionRecord& ghost_position)
@@ -262,7 +265,7 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
     geometry_msgs::Pose2D temp;
 
     int loss_counter =0;
-    int ghost_counter =0; 
+    int ghost_counter =0;
     int match_counter =0;
     results.num_of_total_truth += truth.size();
     results.num_of_total_estimate += est.size();
@@ -367,6 +370,8 @@ void MVEvaluator::results_register(MoveVectorData &truth, MoveVectorData &est)
             xy_transrate_rtheta(relative_x, relative_y, radius, theta);
             index = get_index_from_radiustheta(radius, theta);
             miss_counter[index].num_of_loss++;
+            index = floor( (theta /M_PI *180) /ANGLE_RESOLUTION +0.5);
+            miss_counter_angle[index].num_of_loss++;
         }
     }
     for(int i=0;i<est.size();i++){
@@ -376,6 +381,12 @@ void MVEvaluator::results_register(MoveVectorData &truth, MoveVectorData &est)
             xy_transrate_rtheta(relative_x, relative_y, radius, theta);
             index = get_index_from_radiustheta(radius, theta);
             miss_counter[index].num_of_ghost++;
+            index = floor( (theta /M_PI *180) /ANGLE_RESOLUTION +0.5);
+            miss_counter_angle[index].num_of_ghost++;
+        
+            std::cout << "theta = " << theta /M_PI *180 << std::endl;
+            std::cout << "index = " << index << std::endl;
+        
         }
     }
 }
@@ -390,7 +401,6 @@ void MVEvaluator::results_writer(MissPositionRecord& loss, MissPositionRecord& g
         }
     }
     record_file.close();
-
     std::ofstream record_file_2;
     record_file_2.open(std::string(PKG_PATH + "/records/ghost_records.csv") ,std::ios::app);
     for(int i=0; i<ghost.size(); i++){
@@ -399,4 +409,31 @@ void MVEvaluator::results_writer(MissPositionRecord& loss, MissPositionRecord& g
         }
     }
     record_file_2.close();
+}
+
+void MVEvaluator::results_evaluator(MissCounter& mc,MissCounterAroundPeople& mc_ap)
+{
+    int max_loss;
+    int max_loss_index;
+
+    int max_ghost;
+    int max_ghost_index;
+
+    int Number = 360 /ANGLE_RESOLUTION;
+
+    std::ofstream record_file;
+    record_file.open(std::string(PKG_PATH + "/records/loss_counter_records.csv"));
+    for(int i=0; i< Number;i++){
+        if(max_loss < mc[i].num_of_loss){
+            max_loss = mc[i].num_of_loss;
+            max_loss_index = i;
+        }
+        if(max_loss < mc[i].num_of_ghost){
+            max_ghost = mc[i].num_of_ghost;
+            max_ghost_index = i;
+        }
+        record_file << mc[i].num_of_loss << "," << mc[i].num_of_ghost <<"\n";
+    }
+    record_file.close();
+
 }

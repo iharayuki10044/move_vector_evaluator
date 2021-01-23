@@ -119,8 +119,8 @@ public:
 
     int find_num_from_name(const std::string& , const std::vector<std::string> &);
     int get_index_from_radiustheta(const double, const double);
-    void xy_transrate_rtheta(const double, const double, double, double);
-    void rtheta_transrate_xy(const double, const double, double, double);
+    void xy_transrate_rtheta(const double, const double, double&, double&);
+    void rtheta_transrate_xy(const double, const double, double&, double&);
     double calculate_2Ddistance(const double, const double, const double, const double);
     double atan2_positive(const double, const double);
     double radian_positive_transformer(double);
@@ -138,6 +138,7 @@ public:
     void true_markarray_transformer(MoveVectorData&);
     void results_register(MoveVectorData&, MoveVectorData&);
     void results_writer(MissPositionRecord&, MissPositionRecord&);
+    void results_evaluator(MissCounter& ,MissCounterAroundPeople&);
 
 private:
     bool gazebo_model_states_callback_flag = false;
@@ -172,6 +173,7 @@ private:
     MoveVectorData estimate_data;
     MatchingResults matching_results;
     MissCounter miss_counter;
+    MissCounter miss_counter_angle;
     MissCounterAroundPeople miss_counter_ap;
     MissPositionRecord loss_position_record;
     MissPositionRecord ghost_position_record;
