@@ -93,6 +93,7 @@ void MVEvaluator::formatter(void)
     matching_results.num_of_total_ghosts = 0;
     matching_results.num_of_total_matches = 0;
     matching_results.num_of_total_truth = 0;
+    matching_results.num_of_total_estimate = 0;
 }
 
 int MVEvaluator::get_index_from_radiustheta(const double theta, const double radius)
