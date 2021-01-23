@@ -101,6 +101,15 @@ public:
     };
     typedef std::vector<Grid> MissCounter;
 
+    class Register
+    {
+        public:
+            int num_of_loss;
+            int num_of_ghost;
+        private:
+    };
+    typedef std::vector<Register> MissCounterAroundPeople;
+
     MVEvaluator(void);
 
     int find_num_from_name(const std::string& , const std::vector<std::string> &);
@@ -127,6 +136,7 @@ private:
     bool gazebo_model_states_callback_flag = false;
     bool tracked_person_callback_flag = false;
     bool estimate_data_callback_flag = false;
+    bool initialize_miss_around_flag = false;
 
     double LOSS_PENALTY_COEFFICIENT;
     double GHOST_PENALTY_COEFFICIENT;
@@ -140,6 +150,7 @@ private:
     double ANGLE_THRESHOLD;
     double ANGLE_RESOLUTION;
     double RADIUS_RESOLUTION;
+    double HUMAN_THRESHOLD;
     int PEOPLE_NUM;
     int pc_seq;
     int miss_counter_angle_index;
@@ -152,6 +163,7 @@ private:
     MoveVectorData estimate_data;
     MatchingResults matching_results;
     MissCounter miss_counter;
+    MissCounterAroundPeople miss_counter_ap;
 
     ros::NodeHandle nh;
 	ros::Subscriber gazebo_model_states_subscriber;

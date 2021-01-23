@@ -10,6 +10,7 @@ MVEvaluator::MVEvaluator(void)
 	nh.param("ANGLE_THRESHOLD", ANGLE_THRESHOLD, {45});
     nh.param("ANGLE_RESOLUTION", ANGLE_RESOLUTION, {1});
 	nh.param("RADIUS_RESOLUTION", RADIUS_RESOLUTION, {0.1});
+	nh.param("HUMAN_THRESHOLD", HUMAN_THRESHOLD, {1.0});
     nh.param("LOSS_PENALTY_COEFFICIENT", LOSS_PENALTY_COEFFICIENT, {1.0});
     nh.param("GHOST_PENALTY_COEFFICIENT", GHOST_PENALTY_COEFFICIENT, {1.0});
 	nh.param("PKG_PATH", PKG_PATH, {"/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"});
@@ -30,7 +31,10 @@ void MVEvaluator::executor(void)
             // std::cout << "calculate move vector"<< std::endl;
             cp_peopledata_2_mv(current_people_data, mv_data);
             true_markarray_transformer(mv_data);
-            std::cout << "truth num = " << mv_data.size() << std::endl;
+
+            std::cout << "people num = " << PEOPLE_NUM << std::endl;
+            std::cout << "people num = " << miss_counter_ap.size() << std::endl;
+
             if(estimate_data_callback_flag){
                 evaluator(mv_data, estimate_data, matching_results);
                 std::cout << "evaluate" << std::endl;
@@ -67,6 +71,7 @@ void MVEvaluator::formatter(void)
     gazebo_model_states_callback_flag = false;
 	tracked_person_callback_flag = false;
     estimate_data_callback_flag = false;
+    initialize_miss_around_flag = false;
 
 	dt = 1.0 / Hz;
     miss_counter_angle_index = 360 /ANGLE_RESOLUTION;
@@ -132,6 +137,18 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
 {
 	pedsim_msgs::TrackedPersons tracked_person = *msg;
     PEOPLE_NUM = tracked_person.tracks.size();
+
+    if(!initialize_miss_around_flag){
+        initialize_miss_around_flag = true;
+        miss_counter_ap.clear();
+        Register temp;
+        temp.num_of_loss = 0;
+        temp.num_of_ghost = 0;
+        for(int i=0;i<PEOPLE_NUM;i++){
+            miss_counter_ap.push_back(temp);
+        }
+    }
+
 	for(int i=0;i<PEOPLE_NUM;i++){
 	pre_people_data[i] = current_people_data[i];
 	current_people_data[i].point_x = tracked_person.tracks[i].pose.pose.position.x;
@@ -175,6 +192,7 @@ double MVEvaluator::atan2_positive(double y, double x)
         }
     return theta;
 }
+
 double MVEvaluator::radian_positive_transformer(double radian)
 {
     if(radian < 0){
@@ -189,7 +207,6 @@ double MVEvaluator::radian_transformer_0_180(double radian)
     if(radian > M_PI){
         radian -= M_PI;
     }
-
     return radian;
 }
 
@@ -252,19 +269,17 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
             }
         }
         if(DISTANCE_THRESHOLD_FOR_EVALUATE > min_dis){
-            std::cout << "true angle = " << truth[i].angular.z << " deg = " << truth[i].angular.z /M_PI *180  <<std::endl;
-            std::cout << "est angle = " << est[min_index].angular.z << " deg = " << est[min_index].angular.z /M_PI*180<<std::endl;
-            std::cout << std::endl;
             est[min_index].angular.z = radian_positive_transformer(est[min_index].angular.z);
-            std::cout << "true angle = " << truth[i].angular.z << " deg = " << truth[i].angular.z /M_PI *180  <<std::endl;
-            std::cout << "est angle = " << est[min_index].angular.z << " deg = " << est[min_index].angular.z /M_PI*180<<std::endl;
-
             double radian = radian_transformer_0_180((abs(truth[i].angular.z -est[min_index].angular.z)));
-            std::cout << "angle = " << radian /M_PI *180 <<std::endl;
-            std::cout << "thre = " << ANGLE_THRESHOLD <<std::endl;
-            std::cout << std::endl;
 
-
+            // std::cout << "true angle = " << truth[i].angular.z << " deg = " << truth[i].angular.z /M_PI *180  <<std::endl;
+            // std::cout << "est angle = " << est[min_index].angular.z << " deg = " << est[min_index].angular.z /M_PI*180<<std::endl;
+            // std::cout << std::endl;
+            // std::cout << "true angle = " << truth[i].angular.z << " deg = " << truth[i].angular.z /M_PI *180  <<std::endl;
+            // std::cout << "est angle = " << est[min_index].angular.z << " deg = " << est[min_index].angular.z /M_PI*180<<std::endl;
+            // std::cout << "angle = " << radian /M_PI *180 <<std::endl;
+            // std::cout << "thre = " << ANGLE_THRESHOLD <<std::endl;
+            // std::cout << std::endl;
 
             if(ANGLE_THRESHOLD >  radian /M_PI *180){
                 truth[i].is_match = true;
@@ -287,11 +302,9 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
         }
         std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
     }
-    
     results.num_of_losses = loss_counter;
     results.num_of_ghosts = ghost_counter;
-    results.num_of_matches = match_counter; 
-
+    results.num_of_matches = match_counter;
 }
 
 void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
