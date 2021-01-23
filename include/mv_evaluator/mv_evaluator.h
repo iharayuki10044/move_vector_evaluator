@@ -108,6 +108,8 @@ public:
     void xy_transrate_rtheta(const double, const double, double, double);
     double calculate_2Ddistance(const double, const double, const double, const double);
     double atan2_positive(const double, const double);
+    double radian_positive_transformer(double);
+    double radian_transformer_0_180(double);
 
     void executor(void);
     void formatter(void);

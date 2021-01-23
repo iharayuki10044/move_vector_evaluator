@@ -4,7 +4,8 @@
     <arg name="hz" default="10.0"/>
     <arg name="distance_threshold_for_veldyne" default="100"/>
     <arg name="distance_threshold_for_eva" default="1.0"/>
-    <arg name="angle_resolution" default="45"/>
+    <arg name="angle_threshold" default="45"/>
+    <arg name="angle_resolution" default="1"/>
     <arg name="radius_resolution" default="0.1"/>
     <arg name="loss_penalty_coefficient" default="1.0"/>
     <arg name="ghost_penalty_coefficient" default="1.0"/>
@@ -16,6 +17,7 @@
 		<param name="Hz" value="$(arg hz)" type="double"/>
         <param name="DISTANCE_THRESHOLD_FOR_VELODYNE" value="$(arg distance_threshold_for_veldyne)" type="double"/>
         <param name="DISTANCE_THRESHOLD_FOR_EVALUATE" value="$(arg distance_threshold_for_eva)" type="double"/>
+        <param name="ANGLE_THRESHOLD" value="$(arg angle_threshold)" type="double"/>
         <param name="ANGLE_RESOLUTION" value="$(arg angle_resolution)" type="double"/>
         <param name="RADIUS_RESOLUTION" value="$(arg radius_resolution)" type="double"/>
         <param name="GHOST_PENALTY_COEFFICIENT" value="$(arg ghost_penalty_coefficient)" type="double"/>

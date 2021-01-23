@@ -7,7 +7,8 @@ MVEvaluator::MVEvaluator(void)
     nh.param("PEOPLE_NUM", PEOPLE_NUM, {30});
 	nh.param("DISTANCE_THRESHOLD_FOR_VELODYNE", DISTANCE_THRESHOLD_FOR_VELODYNE, {3});
 	nh.param("DISTANCE_THRESHOLD_FOR_EVALIATE", DISTANCE_THRESHOLD_FOR_EVALUATE, {0.2});
-	nh.param("ANGLE_RESOLUTION", ANGLE_RESOLUTION, {45});
+	nh.param("ANGLE_THRESHOLD", ANGLE_THRESHOLD, {45});
+    nh.param("ANGLE_RESOLUTION", ANGLE_RESOLUTION, {1});
 	nh.param("RADIUS_RESOLUTION", RADIUS_RESOLUTION, {0.1});
     nh.param("LOSS_PENALTY_COEFFICIENT", LOSS_PENALTY_COEFFICIENT, {1.0});
     nh.param("GHOST_PENALTY_COEFFICIENT", GHOST_PENALTY_COEFFICIENT, {1.0});
@@ -174,6 +175,23 @@ double MVEvaluator::atan2_positive(double y, double x)
         }
     return theta;
 }
+double MVEvaluator::radian_positive_transformer(double radian)
+{
+    if(radian < 0){
+        radian = radian + 2 *M_PI;
+        std::cout << "#### "<< std::endl;
+    }
+    return radian;
+}
+
+double MVEvaluator::radian_transformer_0_180(double radian)
+{
+    if(radian > M_PI){
+        radian -= M_PI;
+    }
+
+    return radian;
+}
 
 double MVEvaluator::calculate_2Ddistance(const double x, const double y, const double _x, const double _y)
 {
@@ -234,7 +252,21 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
             }
         }
         if(DISTANCE_THRESHOLD_FOR_EVALUATE > min_dis){
-            if(M_PI *(ANGLE_THRESHOLD) /180 > abs(truth[i].angular.z -est[min_index].angular.z)){
+            std::cout << "true angle = " << truth[i].angular.z << " deg = " << truth[i].angular.z /M_PI *180  <<std::endl;
+            std::cout << "est angle = " << est[min_index].angular.z << " deg = " << est[min_index].angular.z /M_PI*180<<std::endl;
+            std::cout << std::endl;
+            est[min_index].angular.z = radian_positive_transformer(est[min_index].angular.z);
+            std::cout << "true angle = " << truth[i].angular.z << " deg = " << truth[i].angular.z /M_PI *180  <<std::endl;
+            std::cout << "est angle = " << est[min_index].angular.z << " deg = " << est[min_index].angular.z /M_PI*180<<std::endl;
+
+            double radian = radian_transformer_0_180((abs(truth[i].angular.z -est[min_index].angular.z)));
+            std::cout << "angle = " << radian /M_PI *180 <<std::endl;
+            std::cout << "thre = " << ANGLE_THRESHOLD <<std::endl;
+            std::cout << std::endl;
+
+
+
+            if(ANGLE_THRESHOLD >  radian /M_PI *180){
                 truth[i].is_match = true;
                 est[min_index].is_match = true;
                 results.num_of_total_matches++;
