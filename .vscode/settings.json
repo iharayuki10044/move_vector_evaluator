@@ -58,5 +58,10 @@
         "random": "cpp",
         "set": "cpp",
         "string": "cpp"
-    }
+    },
+    "python.autoComplete.extraPaths": [
+        "/home/amsl/Downloads/ros_catkin_ws/devel/lib/python2.7/dist-packages",
+        "/home/amsl/ros_catkin_ws/devel/lib/python2.7/dist-packages",
+        "/opt/ros/melodic/lib/python2.7/dist-packages"
+    ]
 }
