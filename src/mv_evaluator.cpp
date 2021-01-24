@@ -49,7 +49,7 @@ void MVEvaluator::executor(void)
                 std::cout<< "est = " << matching_results.num_of_estimate << std::endl;
                 results_register(mv_data, estimate_data);
                 results_writer(loss_position_record,ghost_position_record);
-                results_evaluator(miss_counter_angle, miss_counter_ap);
+                results_evaluator(matching_results);
             }
         }
         gazebo_model_states_callback_flag = false;
@@ -394,7 +394,9 @@ void MVEvaluator::results_register(MoveVectorData &truth, MoveVectorData &est)
 void MVEvaluator::results_writer(MissPositionRecord& loss, MissPositionRecord& ghost)
 {
     std::ofstream record_file;
-    record_file.open(std::string(PKG_PATH + "/records/loss_records.csv") ,std::ios::app);
+    std::string people_num;
+    people_num = std::to_string(PEOPLE_NUM);
+    record_file.open(std::string(PKG_PATH + "/records/loss_records_"  + people_num +".csv") ,std::ios::app);
     for(int i=0; i<loss.size(); i++){
         if( (fabs(loss[i].x - current_position.x()) < WALL_SIZE_X /2) && ((fabs(loss[i].y - current_position.y()) < WALL_SIZE_Y /2)) ){
         record_file << loss[i].x - current_position.x() << "," << loss[i].y - current_position.y() << "\n";
@@ -402,7 +404,7 @@ void MVEvaluator::results_writer(MissPositionRecord& loss, MissPositionRecord& g
     }
     record_file.close();
     std::ofstream record_file_2;
-    record_file_2.open(std::string(PKG_PATH + "/records/ghost_records.csv") ,std::ios::app);
+    record_file_2.open(std::string(PKG_PATH + "/records/ghost_records_"  + people_num +".csv") ,std::ios::app);
     for(int i=0; i<ghost.size(); i++){
         if( (fabs(ghost[i].x - current_position.x()) < WALL_SIZE_X /2) && ((fabs(ghost[i].y - current_position.y()) < WALL_SIZE_Y /2)) ){
         record_file_2 << ghost[i].x - current_position.x() << "," << ghost[i].y - current_position.y() << "\n";
@@ -411,7 +413,7 @@ void MVEvaluator::results_writer(MissPositionRecord& loss, MissPositionRecord& g
     record_file_2.close();
 }
 
-void MVEvaluator::results_evaluator(MissCounter& mc,MissCounterAroundPeople& mc_ap)
+void MVEvaluator::results_evaluator(MatchingResults& mr)
 {
     int max_loss;
     int max_loss_index;
@@ -421,19 +423,12 @@ void MVEvaluator::results_evaluator(MissCounter& mc,MissCounterAroundPeople& mc_
 
     int Number = 360 /ANGLE_RESOLUTION;
 
+    std::string people_num;
+    people_num = std::to_string(PEOPLE_NUM);
+
     std::ofstream record_file;
-    record_file.open(std::string(PKG_PATH + "/records/loss_counter_records.csv"));
-    for(int i=0; i< Number;i++){
-        if(max_loss < mc[i].num_of_loss){
-            max_loss = mc[i].num_of_loss;
-            max_loss_index = i;
-        }
-        if(max_loss < mc[i].num_of_ghost){
-            max_ghost = mc[i].num_of_ghost;
-            max_ghost_index = i;
-        }
-        record_file << mc[i].num_of_loss << "," << mc[i].num_of_ghost <<"\n";
-    }
+    record_file.open(std::string(PKG_PATH + "/records/counter_records_" + people_num +".csv"));
+    record_file << mr.num_of_total_losses << "," << mr.num_of_total_ghosts <<"\n";
     record_file.close();
 
 }

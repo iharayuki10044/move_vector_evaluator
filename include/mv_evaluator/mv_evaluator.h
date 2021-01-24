@@ -138,7 +138,7 @@ public:
     void true_markarray_transformer(MoveVectorData&);
     void results_register(MoveVectorData&, MoveVectorData&);
     void results_writer(MissPositionRecord&, MissPositionRecord&);
-    void results_evaluator(MissCounter& ,MissCounterAroundPeople&);
+    void results_evaluator(MatchingResults&);
 
 private:
     bool gazebo_model_states_callback_flag = false;
