@@ -52,6 +52,7 @@ void MVEvaluator::executor(void)
                 results_evaluator(matching_results);
             }
         }
+
         gazebo_model_states_callback_flag = false;
 	    tracked_person_callback_flag = false;
         estimate_data_callback_flag = false;
@@ -423,12 +424,13 @@ void MVEvaluator::results_evaluator(MatchingResults& mr)
 
     int Number = 360 /ANGLE_RESOLUTION;
 
-    std::string people_num;
-    people_num = std::to_string(PEOPLE_NUM);
+    if(past_people_num != PEOPLE_NUM){
+        std::ofstream record_file;
+        record_file.open(std::string(PKG_PATH + "/records/counter_records.csv"));
+        record_file << PEOPLE_NUM << "," << mr.num_of_total_losses << "," << mr.num_of_total_ghosts <<"\n";
+        record_file.close();
+    }
 
-    std::ofstream record_file;
-    record_file.open(std::string(PKG_PATH + "/records/counter_records_" + people_num +".csv"));
-    record_file << mr.num_of_total_losses << "," << mr.num_of_total_ghosts <<"\n";
-    record_file.close();
+    past_people_num = PEOPLE_NUM;
 
 }

@@ -160,6 +160,7 @@ private:
     double RADIUS_RESOLUTION;
     double HUMAN_THRESHOLD;
     int PEOPLE_NUM;
+    int past_people_num;
     int WALL_SIZE_X;
     int WALL_SIZE_Y;
     int pc_seq;
