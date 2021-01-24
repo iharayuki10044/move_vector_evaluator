@@ -7,6 +7,12 @@ MVEvaluator::MVEvaluator(void)
     nh.param("PEOPLE_NUM", PEOPLE_NUM, {30});
 	nh.param("DISTANCE_THRESHOLD_FOR_VELODYNE", DISTANCE_THRESHOLD_FOR_VELODYNE, {3});
 	nh.param("DISTANCE_THRESHOLD_FOR_EVALIATE", DISTANCE_THRESHOLD_FOR_EVALUATE, {0.2});
+	nh.param("ANGLE_THRESHOLD", ANGLE_THRESHOLD, {45});
+    nh.param("ANGLE_RESOLUTION", ANGLE_RESOLUTION, {1});
+	nh.param("RADIUS_RESOLUTION", RADIUS_RESOLUTION, {0.1});
+	nh.param("HUMAN_THRESHOLD", HUMAN_THRESHOLD, {1.0});
+    nh.param("WALL_SIZE_X", WALL_SIZE_X, {18});
+    nh.param("WALL_SIZE_Y", WALL_SIZE_Y, {16});
     nh.param("LOSS_PENALTY_COEFFICIENT", LOSS_PENALTY_COEFFICIENT, {1.0});
     nh.param("GHOST_PENALTY_COEFFICIENT", GHOST_PENALTY_COEFFICIENT, {1.0});
 	nh.param("PKG_PATH", PKG_PATH, {"/home/amsl/Downloads/ros_catkin_ws/src/mv_evaluator"});
@@ -14,7 +20,6 @@ MVEvaluator::MVEvaluator(void)
     gazebo_model_states_subscriber = nh.subscribe("/gazebo/model_states", 10, &MVEvaluator::gazebo_model_states_callback, this);
 	tracked_person_subscriber = nh.subscribe("/pedsim_visualizer/tracked_persons", 10, &MVEvaluator::tracked_person_callback, this);
     kf_tracking_subscriber = nh.subscribe("/obstacles_trajectory_predictor_demo/velocity_arrows", 10, &MVEvaluator::kf_tracking_callback, this);
-    velodyne_points_subscriber = nh.subscribe("/velodyne_points", 10, &MVEvaluator::velodyne_callback, this);
     truth_markarray_publisher = nh.advertise<visualization_msgs::MarkerArray>("/truth_velocity_arrows", 1);
 }
 
@@ -26,17 +31,14 @@ void MVEvaluator::executor(void)
         std::cout << "==MVEvaluator=="<< std::endl;
         if(gazebo_model_states_callback_flag && tracked_person_callback_flag){
             // std::cout << "calculate move vector"<< std::endl;
-            is_person_in_local(current_people_data);
             cp_peopledata_2_mv(current_people_data, mv_data);
             true_markarray_transformer(mv_data);
-        
+
             if(estimate_data_callback_flag){
-                evaluator(mv_data, estimate_data, matching_results);
+                evaluator(mv_data, estimate_data, matching_results, loss_position_record, ghost_position_record);
                 std::cout << "evaluate" << std::endl;
                 std::cout<< "loss = " << matching_results.num_of_total_losses << std::endl;
-                std::cout<< "loss penalty = " << matching_results.mv_loss_penalty << std::endl;
                 std::cout<< "ghost = " << matching_results.num_of_total_ghosts << std::endl;
-                std::cout<< "ghost penalty = " << matching_results.mv_ghost_penalty << std::endl;
                 std::cout<< "match = " << matching_results.num_of_total_matches << std::endl;
                 std::cout<< "total tru = " << matching_results.num_of_total_truth << std::endl;
                 std::cout<< "total est = " << matching_results.num_of_total_estimate << std::endl;
@@ -45,15 +47,9 @@ void MVEvaluator::executor(void)
                 std::cout<< "match = " << matching_results.num_of_matches <<std::endl;
                 std::cout<< "tru = " << matching_results.num_of_truth << std::endl;
                 std::cout<< "est = " << matching_results.num_of_estimate << std::endl;
-                std::cout<< "size ave = " << matching_results.mv_size_average << std::endl;
-                std::cout<< "size dis = " << matching_results.mv_size_distribute << std::endl; 
-                std::cout<< "angle ave = " << matching_results.mv_angle_average << std::endl;
-                std::cout<< "angle dis = " << matching_results.mv_angle_distribute << std::endl;
-                std::cout<< "x ave = " << matching_results.mv_x_average << std::endl;
-                std::cout<< "x dis = " << matching_results.mv_x_distribute << std::endl;
-                std::cout<< "y ave = " << matching_results.mv_y_average << std::endl;
-                std::cout<< "y dis = " << matching_results.mv_y_distribute << std::endl; 
-
+                results_register(mv_data, estimate_data);
+                results_writer(loss_position_record,ghost_position_record);
+                results_evaluator(miss_counter_angle, miss_counter_ap);
             }
         }
         gazebo_model_states_callback_flag = false;
@@ -76,8 +72,24 @@ void MVEvaluator::formatter(void)
     gazebo_model_states_callback_flag = false;
 	tracked_person_callback_flag = false;
     estimate_data_callback_flag = false;
+    initialize_miss_around_flag = false;
 
 	dt = 1.0 / Hz;
+    miss_counter_angle_index = 360 /ANGLE_RESOLUTION;
+    miss_counter_radius_index = DISTANCE_THRESHOLD_FOR_VELODYNE /RADIUS_RESOLUTION;
+    int grid_num = miss_counter_radius_index *miss_counter_angle_index;
+    miss_counter.clear();
+    Grid temp;
+    for(int i=0;i<grid_num;i++){
+        temp.num_of_loss = 0;
+        temp.num_of_ghost = 0;
+        miss_counter.push_back(temp);
+    }
+    for(int i=0;i<miss_counter_angle_index;i++){
+        temp.num_of_loss = 0;
+        temp.num_of_ghost = 0;
+        miss_counter_angle.push_back(temp);
+    }
 
     current_people_data.resize(PEOPLE_NUM);
 	pre_people_data.resize(PEOPLE_NUM);
@@ -87,22 +99,28 @@ void MVEvaluator::formatter(void)
     matching_results.num_of_total_ghosts = 0;
     matching_results.num_of_total_matches = 0;
     matching_results.num_of_total_truth = 0;
-    matching_results.mv_loss_penalty = 0.0;
-    matching_results.mv_ghost_penalty = 0.0;
+    matching_results.num_of_total_estimate = 0;
+}
 
-    matching_results.mv_size_distribute;
-    matching_results.mv_size_average;
-    matching_results.mv_size_square_average;
-    matching_results.mv_angle_distribute;
-    matching_results.mv_angle_average;
-    matching_results.mv_angle_square_average;
-    matching_results.mv_x_distribute;
-    matching_results.mv_x_average;
-    matching_results.mv_x_square_average;
-    matching_results.mv_y_distribute;
-    matching_results.mv_y_average;
-    matching_results.mv_y_square_average;
+int MVEvaluator::get_index_from_radiustheta(const double theta, const double radius)
+{
+    double a_resolution = ANGLE_RESOLUTION *M_PI /180;
+    int _r = floor(radius /RADIUS_RESOLUTION + 0.5);
+    int _t = floor(theta /a_resolution + 0.5);
+    return _t + _r * miss_counter_radius_index;
+}
 
+void MVEvaluator::xy_transrate_rtheta(const double x, const double y, double &r, double &theta)
+{
+    r = calculate_2Ddistance(x, y, 0, 0);
+    theta = atan2_positive(y, x);
+    std::cout << "x = "<< x << " y = " << y << " r = " << r << " theta = " << theta << std::endl;
+}
+
+void MVEvaluator::rtheta_transrate_xy(const double r, const double theta, double &x, double &y)
+{
+    x = r *cos(theta);
+    y = r *sin(theta);
 }
 
 int MVEvaluator::find_num_from_name(const std::string &name,const std::vector<std::string> &states)
@@ -133,6 +151,18 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
 {
 	pedsim_msgs::TrackedPersons tracked_person = *msg;
     PEOPLE_NUM = tracked_person.tracks.size();
+
+    if(!initialize_miss_around_flag){
+        initialize_miss_around_flag = true;
+        miss_counter_ap.clear();
+        Register temp;
+        temp.num_of_loss = 0;
+        temp.num_of_ghost = 0;
+        for(int i=0;i<PEOPLE_NUM;i++){
+            miss_counter_ap.push_back(temp);
+        }
+    }
+
 	for(int i=0;i<PEOPLE_NUM;i++){
 	pre_people_data[i] = current_people_data[i];
 	current_people_data[i].point_x = tracked_person.tracks[i].pose.pose.position.x;
@@ -147,13 +177,6 @@ void MVEvaluator::tracked_person_callback(const pedsim_msgs::TrackedPersons::Con
     }
     // std::cout<<"qu = "<< tracked_person <<std::endl;
 	tracked_person_callback_flag = true;
-}
-
-void MVEvaluator::velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr& msg)
-{
-    sensor_msgs::PointCloud2 input_pc = *msg;
-    // std::cout << "number of point = " << input_pc.data.size() << std::endl;
-
 }
 
 void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr& msg)
@@ -174,14 +197,29 @@ void MVEvaluator::kf_tracking_callback(const visualization_msgs::MarkerArray::Co
     estimate_data_callback_flag = true;
 }
 
-
 double MVEvaluator::atan2_positive(double y, double x)
 {
     double theta = atan2(y ,x);
     if(theta < 0){
-            theta += 2 *M_PI;
-        }
+        theta += 2 *M_PI;
+    }
     return theta;
+}
+
+double MVEvaluator::radian_positive_transformer(double radian)
+{
+    if(radian < 0){
+        radian = radian + 2 *M_PI;
+    }
+    return radian;
+}
+
+double MVEvaluator::radian_transformer_0_180(double radian)
+{
+    if(radian > M_PI){
+        radian -= M_PI;
+    }
+    return radian;
 }
 
 double MVEvaluator::calculate_2Ddistance(const double x, const double y, const double _x, const double _y)
@@ -191,45 +229,29 @@ double MVEvaluator::calculate_2Ddistance(const double x, const double y, const d
 	return sqrt(delta_x *delta_x + delta_y *delta_y);
 }
 
-
-void MVEvaluator::is_person_in_local(PeopleData &cur)
-{
-    for(int i=0;i<PEOPLE_NUM;i++){
-        double distance = calculate_2Ddistance(cur[i].point_x, cur[i].point_y, current_position.x(), current_position.y());
-        if(distance < DISTANCE_THRESHOLD_FOR_VELODYNE){
-            cur[i].is_person_exist_in_local = true;
-        }
-        else{
-            cur[i].is_person_exist_in_local = false;
-        }
-    }
-}
-
 void MVEvaluator::cp_peopledata_2_mv(PeopleData &cur, MoveVectorData &mv_data)
 {
     mv_data.clear();
     for(int i=0;i<PEOPLE_NUM;i++){
-        if(cur[i].is_person_exist_in_local){
-            MoveVector temp;
-            temp.vector_x = cur[i].move_vector_x;
-            temp.vector_y = cur[i].move_vector_y;
-            temp.point_x = cur[i].point_x;
-            temp.point_y = cur[i].point_y;
-            temp.quaternion = cur[i].quaternion;
-            temp.linear = cur[i].linear;
-            temp.angular = cur[i].angular;
-            mv_data.push_back(temp);
-        }
+        MoveVector temp;
+        temp.vector_x = cur[i].move_vector_x;
+        temp.vector_y = cur[i].move_vector_y;
+        temp.point_x = cur[i].point_x;
+        temp.point_y = cur[i].point_y;
+        temp.quaternion = cur[i].quaternion;
+        temp.linear = cur[i].linear;
+        temp.angular = cur[i].angular;
+        mv_data.push_back(temp);
     }
 }
 
 double MVEvaluator::cost_calculator(double x, double y)
 {
     double distance = calculate_2Ddistance(x, y, current_position.x(), current_position.y());
-    return (1 -distance/DISTANCE_THRESHOLD_FOR_VELODYNE);
+    return (1 - distance/DISTANCE_THRESHOLD_FOR_VELODYNE);
 }
 
-void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results)
+void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, MatchingResults &results, MissPositionRecord& loss_position, MissPositionRecord& ghost_position)
 {
     for(int i=0; i<est.size();i++){
         est[i].is_match = false;
@@ -237,23 +259,18 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
     for(int i=0; i<truth.size();i++){
         truth[i].is_match = false;
     }
+
+    loss_position.clear();
+    ghost_position.clear();
+    geometry_msgs::Pose2D temp;
+
     int loss_counter =0;
-    int ghost_counter =0; 
+    int ghost_counter =0;
     int match_counter =0;
     results.num_of_total_truth += truth.size();
     results.num_of_total_estimate += est.size();
     results.num_of_truth = truth.size();
     results.num_of_estimate = est.size();
-
-    std::vector<double> error_mv_size;
-    std::vector<double> error_mv_angle;
-    std::vector<double> error_mv_x;
-    std::vector<double> error_mv_y;
-
-    error_mv_size.clear();
-    error_mv_angle.clear();
-    error_mv_x.clear();
-    error_mv_y.clear();
 
     for(int i=0; i<truth.size();i++){
         double dis;
@@ -269,50 +286,48 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
             }
         }
         if(DISTANCE_THRESHOLD_FOR_EVALUATE > min_dis){
-            truth[i].is_match = true;
-            est[min_index].is_match = true;
-            results.num_of_total_matches++;
-            match_counter++;
+            est[min_index].angular.z = radian_positive_transformer(est[min_index].angular.z);
+            double radian = radian_transformer_0_180((abs(truth[i].angular.z -est[min_index].angular.z)));
 
-            error_mv_size.push_back(abs(est[min_index].linear.x -truth[i].linear.x));
-            error_mv_angle.push_back(abs(est[min_index].angular.z -truth[i].angular.z));
-            error_mv_x.push_back(abs(est[min_index].point_x -truth[i].point_x));
-            error_mv_y.push_back(abs(est[min_index].point_y -truth[i].point_y));
+            // std::cout << "true angle = " << truth[i].angular.z << " deg = " << truth[i].angular.z /M_PI *180  <<std::endl;
+            // std::cout << "est angle = " << est[min_index].angular.z << " deg = " << est[min_index].angular.z /M_PI*180<<std::endl;
+            // std::cout << std::endl;
+            // std::cout << "true angle = " << truth[i].angular.z << " deg = " << truth[i].angular.z /M_PI *180  <<std::endl;
+            // std::cout << "est angle = " << est[min_index].angular.z << " deg = " << est[min_index].angular.z /M_PI*180<<std::endl;
+            // std::cout << "angle = " << radian /M_PI *180 <<std::endl;
+            // std::cout << "thre = " << ANGLE_THRESHOLD <<std::endl;
+            // std::cout << std::endl;
 
+            if(ANGLE_THRESHOLD >  radian /M_PI *180){
+                truth[i].is_match = true;
+                est[min_index].is_match = true;
+                results.num_of_total_matches++;
+                match_counter++;
+            }
         }
         if(!truth[i].is_match){
             results.num_of_total_losses++;
             loss_counter++;
-            results.mv_loss_penalty += LOSS_PENALTY_COEFFICIENT *cost_calculator(truth[i].point_x, truth[i].point_y);
+            temp.x = truth[i].point_x;
+            temp.y = truth[i].point_y;
+            loss_position.push_back(temp);
         }
     }
-
-    for(int i=0;i<match_counter;i++){
-            results.mv_size_average += error_mv_size[i]/results.num_of_total_matches;
-            results.mv_angle_average += error_mv_angle[i]/results.num_of_total_matches;
-            results.mv_x_average += error_mv_x[i]/results.num_of_total_matches;
-            results.mv_y_average += error_mv_y[i]/results.num_of_total_matches;
-        }
-
-        results.mv_size_distribute = results.mv_size_square_average - results.mv_size_average *results.mv_size_average;
-        results.mv_angle_distribute = results.mv_angle_square_average - results.mv_angle_average *results.mv_angle_average;
-        results.mv_x_distribute = results.mv_x_square_average - results.mv_x_average *results.mv_x_average;
-        results.mv_y_distribute = results.mv_y_square_average - results.mv_y_average *results.mv_y_average;
 
     std::cout<<"estimate"<<std::endl;
     for(int i=0; i<est.size();i++){
         if(!est[i].is_match){
             ghost_counter++;
             results.num_of_total_ghosts++;
-            results.mv_ghost_penalty += GHOST_PENALTY_COEFFICIENT *cost_calculator(est[i].point_x, est[i].point_y);
+            temp.x = est[i].point_x;
+            temp.y = est[i].point_y;
+            ghost_position.push_back(temp);
         }
-        // std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
-
+        std::cout << "local x : " <<est[i].point_x <<" local y : " <<est[i].point_y <<std::endl;
+    }
     results.num_of_losses = loss_counter;
     results.num_of_ghosts = ghost_counter;
-    results.num_of_matches = match_counter; 
-
-    }
+    results.num_of_matches = match_counter;
 }
 
 void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
@@ -338,4 +353,87 @@ void MVEvaluator::true_markarray_transformer(MoveVectorData &ground_truth)
     }
 
     truth_markarray_publisher.publish(arrows);
+}
+
+void MVEvaluator::results_register(MoveVectorData &truth, MoveVectorData &est)
+{
+    double relative_x;
+    double relative_y;
+    double radius;
+    double theta;
+    int index;
+
+    for(int i=0; i<truth.size();i++){
+        if(!truth[i].is_match){
+            relative_x = truth[i].point_x - current_position.x();
+            relative_y = truth[i].point_y - current_position.y();
+            xy_transrate_rtheta(relative_x, relative_y, radius, theta);
+            index = get_index_from_radiustheta(radius, theta);
+            miss_counter[index].num_of_loss++;
+            index = floor( (theta /M_PI *180) /ANGLE_RESOLUTION +0.5);
+            miss_counter_angle[index].num_of_loss++;
+        }
+    }
+    for(int i=0;i<est.size();i++){
+        if(!est[i].is_match){
+            relative_x = est[i].point_x - current_position.x();
+            relative_y = est[i].point_y - current_position.y();
+            xy_transrate_rtheta(relative_x, relative_y, radius, theta);
+            index = get_index_from_radiustheta(radius, theta);
+            miss_counter[index].num_of_ghost++;
+            index = floor( (theta /M_PI *180) /ANGLE_RESOLUTION +0.5);
+            miss_counter_angle[index].num_of_ghost++;
+        
+            std::cout << "theta = " << theta /M_PI *180 << std::endl;
+            std::cout << "index = " << index << std::endl;
+        
+        }
+    }
+}
+
+void MVEvaluator::results_writer(MissPositionRecord& loss, MissPositionRecord& ghost)
+{
+    std::ofstream record_file;
+    record_file.open(std::string(PKG_PATH + "/records/loss_records.csv") ,std::ios::app);
+    for(int i=0; i<loss.size(); i++){
+        if( (fabs(loss[i].x - current_position.x()) < WALL_SIZE_X /2) && ((fabs(loss[i].y - current_position.y()) < WALL_SIZE_Y /2)) ){
+        record_file << loss[i].x - current_position.x() << "," << loss[i].y - current_position.y() << "\n";
+        }
+    }
+    record_file.close();
+    std::ofstream record_file_2;
+    record_file_2.open(std::string(PKG_PATH + "/records/ghost_records.csv") ,std::ios::app);
+    for(int i=0; i<ghost.size(); i++){
+        if( (fabs(ghost[i].x - current_position.x()) < WALL_SIZE_X /2) && ((fabs(ghost[i].y - current_position.y()) < WALL_SIZE_Y /2)) ){
+        record_file_2 << ghost[i].x - current_position.x() << "," << ghost[i].y - current_position.y() << "\n";
+        }
+    }
+    record_file_2.close();
+}
+
+void MVEvaluator::results_evaluator(MissCounter& mc,MissCounterAroundPeople& mc_ap)
+{
+    int max_loss;
+    int max_loss_index;
+
+    int max_ghost;
+    int max_ghost_index;
+
+    int Number = 360 /ANGLE_RESOLUTION;
+
+    std::ofstream record_file;
+    record_file.open(std::string(PKG_PATH + "/records/loss_counter_records.csv"));
+    for(int i=0; i< Number;i++){
+        if(max_loss < mc[i].num_of_loss){
+            max_loss = mc[i].num_of_loss;
+            max_loss_index = i;
+        }
+        if(max_loss < mc[i].num_of_ghost){
+            max_ghost = mc[i].num_of_ghost;
+            max_ghost_index = i;
+        }
+        record_file << mc[i].num_of_loss << "," << mc[i].num_of_ghost <<"\n";
+    }
+    record_file.close();
+
 }

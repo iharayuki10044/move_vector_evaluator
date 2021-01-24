@@ -37,6 +37,10 @@
 
 #include <gazebo_msgs/ModelStates.h>
 
+#include <iostream>
+#include <fstream>
+
+
 class MVEvaluator
 {
 public:
@@ -87,36 +91,40 @@ public:
             int num_of_total_matches;
             int num_of_total_truth;
             int num_of_total_estimate;
-            double mv_loss_penalty;
-            double mv_ghost_penalty;
-
-            double mv_size_distribute;
-            double mv_size_average;
-            double mv_size_square_average;
-
-
-            double mv_angle_distribute;
-            double mv_angle_average;
-            double mv_angle_square_average;
-
-
-            double mv_x_distribute;
-            double mv_x_average;
-            double mv_x_square_average;
-
-            double mv_y_distribute;
-            double mv_y_average;
-            double mv_y_square_average;
-
         private:
     };
+
+    class Grid
+    {
+        public:
+            double radius;
+            double theta;
+            int num_of_loss;
+            int num_of_ghost;
+        private:
+    };
+    typedef std::vector<Grid> MissCounter;
+
+    class Register
+    {
+        public:
+            int num_of_loss;
+            int num_of_ghost;
+        private:
+    };
+    typedef std::vector<Register> MissCounterAroundPeople;
+    typedef std::vector<geometry_msgs::Pose2D> MissPositionRecord;
 
     MVEvaluator(void);
 
     int find_num_from_name(const std::string& , const std::vector<std::string> &);
+    int get_index_from_radiustheta(const double, const double);
+    void xy_transrate_rtheta(const double, const double, double&, double&);
+    void rtheta_transrate_xy(const double, const double, double&, double&);
     double calculate_2Ddistance(const double, const double, const double, const double);
     double atan2_positive(const double, const double);
-    void is_person_in_local(PeopleData&);
+    double radian_positive_transformer(double);
+    double radian_transformer_0_180(double);
 
     void executor(void);
     void formatter(void);
@@ -126,13 +134,17 @@ public:
     void kf_tracking_callback(const visualization_msgs::MarkerArray::ConstPtr&);
     void cp_peopledata_2_mv(PeopleData&, MoveVectorData&);
     double cost_calculator(const double, const double);
-    void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&);
+    void evaluator(MoveVectorData&, MoveVectorData&, MatchingResults&, MissPositionRecord&, MissPositionRecord&);
     void true_markarray_transformer(MoveVectorData&);
+    void results_register(MoveVectorData&, MoveVectorData&);
+    void results_writer(MissPositionRecord&, MissPositionRecord&);
+    void results_evaluator(MissCounter& ,MissCounterAroundPeople&);
 
 private:
     bool gazebo_model_states_callback_flag = false;
     bool tracked_person_callback_flag = false;
     bool estimate_data_callback_flag = false;
+    bool initialize_miss_around_flag = false;
 
     double LOSS_PENALTY_COEFFICIENT;
     double GHOST_PENALTY_COEFFICIENT;
@@ -143,8 +155,16 @@ private:
     double dt;
     double DISTANCE_THRESHOLD_FOR_VELODYNE;
     double DISTANCE_THRESHOLD_FOR_EVALUATE;
+    double ANGLE_THRESHOLD;
+    double ANGLE_RESOLUTION;
+    double RADIUS_RESOLUTION;
+    double HUMAN_THRESHOLD;
     int PEOPLE_NUM;
+    int WALL_SIZE_X;
+    int WALL_SIZE_Y;
     int pc_seq;
+    int miss_counter_angle_index;
+    int miss_counter_radius_index;
     std::string PKG_PATH;
 
     PeopleData current_people_data;
@@ -152,11 +172,15 @@ private:
     MoveVectorData mv_data;
     MoveVectorData estimate_data;
     MatchingResults matching_results;
+    MissCounter miss_counter;
+    MissCounter miss_counter_angle;
+    MissCounterAroundPeople miss_counter_ap;
+    MissPositionRecord loss_position_record;
+    MissPositionRecord ghost_position_record;
 
     ros::NodeHandle nh;
 	ros::Subscriber gazebo_model_states_subscriber;
     ros::Subscriber tracked_person_subscriber;
-    ros::Subscriber velodyne_points_subscriber;
     ros::Subscriber kf_tracking_subscriber;
     ros::Publisher truth_markarray_publisher;
 
