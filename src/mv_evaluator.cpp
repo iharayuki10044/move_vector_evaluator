@@ -426,7 +426,7 @@ void MVEvaluator::results_evaluator(MatchingResults& mr)
 
     if(past_people_num != PEOPLE_NUM){
         std::ofstream record_file;
-        record_file.open(std::string(PKG_PATH + "/records/counter_records.csv"));
+        record_file.open(std::string(PKG_PATH + "/records/counter_records.csv") ,std::ios::app);
         record_file << PEOPLE_NUM << "," << mr.num_of_total_losses << "," << mr.num_of_total_ghosts <<"\n";
         record_file.close();
     }
