@@ -128,6 +128,7 @@ public:
 
     void executor(void);
     void formatter(void);
+    void initializer(void);
     void gazebo_model_states_callback(const gazebo_msgs::ModelStates::ConstPtr&);
     void tracked_person_callback(const pedsim_msgs::TrackedPersons::ConstPtr&);
     void velodyne_callback(const sensor_msgs::PointCloud2::ConstPtr&);

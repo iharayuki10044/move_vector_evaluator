@@ -29,6 +29,12 @@ void MVEvaluator::executor(void)
     ros::Rate r(Hz);
 	while(ros::ok()){
         std::cout << "==MVEvaluator=="<< std::endl;
+
+        if(past_people_num != PEOPLE_NUM){
+            initializer();
+        }
+
+
         if(gazebo_model_states_callback_flag && tracked_person_callback_flag){
             // std::cout << "calculate move vector"<< std::endl;
             cp_peopledata_2_mv(current_people_data, mv_data);
@@ -102,6 +108,38 @@ void MVEvaluator::formatter(void)
     matching_results.num_of_total_truth = 0;
     matching_results.num_of_total_estimate = 0;
 }
+
+void MVEvaluator::initializer(void)
+{
+    miss_counter_angle_index = 360 /ANGLE_RESOLUTION;
+    miss_counter_radius_index = DISTANCE_THRESHOLD_FOR_VELODYNE /RADIUS_RESOLUTION;
+    int grid_num = miss_counter_radius_index *miss_counter_angle_index;
+    miss_counter.clear();
+    Grid temp;
+    for(int i=0;i<grid_num;i++){
+        temp.num_of_loss = 0;
+        temp.num_of_ghost = 0;
+        miss_counter.push_back(temp);
+    }
+    for(int i=0;i<miss_counter_angle_index;i++){
+        temp.num_of_loss = 0;
+        temp.num_of_ghost = 0;
+        miss_counter_angle.push_back(temp);
+    }
+
+    current_people_data.resize(PEOPLE_NUM);
+	pre_people_data.resize(PEOPLE_NUM);
+    mv_data.resize(0);
+
+    matching_results.num_of_total_losses = 0;
+    matching_results.num_of_total_ghosts = 0;
+    matching_results.num_of_total_matches = 0;
+    matching_results.num_of_total_truth = 0;
+    matching_results.num_of_total_estimate = 0;
+
+
+}
+
 
 int MVEvaluator::get_index_from_radiustheta(const double theta, const double radius)
 {
