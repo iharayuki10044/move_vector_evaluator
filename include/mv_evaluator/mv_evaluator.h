@@ -146,6 +146,7 @@ private:
     bool tracked_person_callback_flag = false;
     bool estimate_data_callback_flag = false;
     bool initialize_miss_around_flag = false;
+    bool counter_initialize_flag = false;
 
     double LOSS_PENALTY_COEFFICIENT;
     double GHOST_PENALTY_COEFFICIENT;

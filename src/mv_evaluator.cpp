@@ -55,7 +55,16 @@ void MVEvaluator::executor(void)
                 std::cout<< "est = " << matching_results.num_of_estimate << std::endl;
                 results_register(mv_data, estimate_data);
                 results_writer(loss_position_record,ghost_position_record);
+
+                counter_initialize_flag =true;
+            }
+        }
+
+        else{
+            if(counter_initialize_flag){
                 results_evaluator(matching_results);
+                initializer();
+                counter_initialize_flag = false;
             }
         }
 
@@ -80,6 +89,8 @@ void MVEvaluator::formatter(void)
 	tracked_person_callback_flag = false;
     estimate_data_callback_flag = false;
     initialize_miss_around_flag = false;
+
+    counter_initialize_flag = false;
 
 	dt = 1.0 / Hz;
     miss_counter_angle_index = 360 /ANGLE_RESOLUTION;
@@ -111,6 +122,8 @@ void MVEvaluator::formatter(void)
 
 void MVEvaluator::initializer(void)
 {
+    initialize_miss_around_flag = false;
+
     miss_counter_angle_index = 360 /ANGLE_RESOLUTION;
     miss_counter_radius_index = DISTANCE_THRESHOLD_FOR_VELODYNE /RADIUS_RESOLUTION;
     int grid_num = miss_counter_radius_index *miss_counter_angle_index;
@@ -130,13 +143,6 @@ void MVEvaluator::initializer(void)
     current_people_data.resize(PEOPLE_NUM);
 	pre_people_data.resize(PEOPLE_NUM);
     mv_data.resize(0);
-
-    matching_results.num_of_total_losses = 0;
-    matching_results.num_of_total_ghosts = 0;
-    matching_results.num_of_total_matches = 0;
-    matching_results.num_of_total_truth = 0;
-    matching_results.num_of_total_estimate = 0;
-
 
 }
 
@@ -470,11 +476,16 @@ void MVEvaluator::results_evaluator(MatchingResults& mr)
 
     int Number = 360 /ANGLE_RESOLUTION;
 
-    if(past_people_num != PEOPLE_NUM){
+    if(counter_initialize_flag){
         std::ofstream record_file;
         record_file.open(std::string(PKG_PATH + "/records/counter_records.csv") ,std::ios::app);
         record_file << PEOPLE_NUM << "," << mr.num_of_total_losses << "," << mr.num_of_total_ghosts << "," << mr.num_of_total_matches << "," << mr.num_of_total_estimate <<"," << mr.num_of_total_truth<<"\n";
         record_file.close();
+        matching_results.num_of_total_losses = 0;
+        matching_results.num_of_total_ghosts = 0;
+        matching_results.num_of_total_matches = 0;
+        matching_results.num_of_total_truth = 0;
+        matching_results.num_of_total_estimate = 0;
     }
 
     past_people_num = PEOPLE_NUM;
