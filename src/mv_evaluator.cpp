@@ -299,12 +299,20 @@ void MVEvaluator::evaluator(MoveVectorData &truth, MoveVectorData &est, Matching
             // std::cout << "thre = " << ANGLE_THRESHOLD <<std::endl;
             // std::cout << std::endl;
 
-            if(ANGLE_THRESHOLD >  radian /M_PI *180){
+            // if(ANGLE_THRESHOLD >  radian /M_PI *180){
+            //     truth[i].is_match = true;
+            //     est[min_index].is_match = true;
+            //     results.num_of_total_matches++;
+            //     match_counter++;
+            // }
+
+            if(true){
                 truth[i].is_match = true;
                 est[min_index].is_match = true;
                 results.num_of_total_matches++;
                 match_counter++;
             }
+
         }
         if(!truth[i].is_match){
             results.num_of_total_losses++;
